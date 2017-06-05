@@ -1,0 +1,33 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Mapping Space="C-S" xmlns="http://schemas.microsoft.com/ado/2009/11/mapping/cs">
+  <EntityContainerMapping StorageEntityContainer="ResumeRepairEntityStoreContainer" CdmEntityContainer="ResumeRepairDBEntities">
+    <EntitySetMapping Name="FenJianLi">
+      <EntityTypeMapping TypeName="ResumeRepairEntity.FenJianLi">
+        <MappingFragment StoreEntitySet="FenJianLi">
+          <ScalarProperty Name="VerificationAccount" ColumnName="VerificationAccount" />
+          <ScalarProperty Name="IsVerification" ColumnName="IsVerification" />
+          <ScalarProperty Name="IsActivation" ColumnName="IsActivation" />
+          <ScalarProperty Name="Id" ColumnName="Id" />
+          <ScalarProperty Name="Email" ColumnName="Email" />
+          <ScalarProperty Name="PassWord" ColumnName="PassWord" />
+          <ScalarProperty Name="CreateDate" ColumnName="CreateDate" />
+          <ScalarProperty Name="LastLoginDate" ColumnName="LastLoginDate" />
+          <ScalarProperty Name="IsEnable" ColumnName="IsEnable" />
+          <ScalarProperty Name="Integral" ColumnName="Integral" />
+        </MappingFragment>
+      </EntityTypeMapping>
+    </EntitySetMapping>
+    <EntitySetMapping Name="AuthorizationAccount">
+      <EntityTypeMapping TypeName="ResumeRepairEntity.AuthorizationAccount">
+        <MappingFragment StoreEntitySet="AuthorizationAccount">
+          <ScalarProperty Name="IsEnable" ColumnName="IsEnable" />
+          <ScalarProperty Name="CreateDate" ColumnName="CreateDate" />
+          <ScalarProperty Name="PassWord" ColumnName="PassWord" />
+          <ScalarProperty Name="UserName" ColumnName="UserName" />
+          <ScalarProperty Name="ExtendParam" ColumnName="ExtendParam" />
+          <ScalarProperty Name="Id" ColumnName="Id" />
+        </MappingFragment>
+      </EntityTypeMapping>
+    </EntitySetMapping>
+  </EntityContainerMapping>
+</Mapping>

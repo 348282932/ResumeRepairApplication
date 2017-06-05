@@ -1,0 +1,51 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Schema Namespace="ResumeRepairEntity.Store" Provider="System.Data.SqlClient" ProviderManifestToken="2012" Alias="Self" xmlns:store="http://schemas.microsoft.com/ado/2007/12/edm/EntityStoreSchemaGenerator" xmlns:customannotation="http://schemas.microsoft.com/ado/2013/11/edm/customannotation" xmlns="http://schemas.microsoft.com/ado/2009/11/edm/ssdl">
+  <EntityType Name="AuthorizationAccount">
+    <Key>
+      <PropertyRef Name="Id" />
+    </Key>
+    <Property Name="Id" Type="int" StoreGeneratedPattern="Identity" Nullable="false" />
+    <Property Name="ExtendParam" Type="varchar" MaxLength="32" Nullable="false" />
+    <Property Name="UserName" Type="varchar" MaxLength="32" Nullable="false" />
+    <Property Name="PassWord" Type="varchar" MaxLength="32" Nullable="false" />
+    <Property Name="CreateDate" Type="datetime2" Precision="7" Nullable="false" />
+    <Property Name="IsEnable" Type="bit" Nullable="false" />
+  </EntityType>
+  <EntityType Name="FenJianLi">
+    <Key>
+      <PropertyRef Name="Id" />
+    </Key>
+    <Property Name="Id" Type="int" StoreGeneratedPattern="Identity" Nullable="false" />
+    <Property Name="Email" Type="varchar" MaxLength="32" Nullable="false" />
+    <Property Name="PassWord" Type="varchar" MaxLength="32" Nullable="false" />
+    <Property Name="CreateDate" Type="datetime2" Precision="7" Nullable="false" />
+    <Property Name="LastLoginDate" Type="datetime2" Precision="7" />
+    <Property Name="IsEnable" Type="bit" Nullable="false" />
+    <Property Name="Integral" Type="int" Nullable="false" />
+    <Property Name="IsActivation" Type="bit" Nullable="false" />
+    <Property Name="IsVerification" Type="bit" Nullable="false" />
+    <Property Name="VerificationAccount" Type="varchar" MaxLength="32" />
+    <Property Name="IsLocked" Type="bit" Nullable="false" />
+  </EntityType>
+  <EntityType Name="ResumeRecord">
+    <Key>
+      <PropertyRef Name="Id" />
+    </Key>
+    <Property Name="Id" Type="bigint" StoreGeneratedPattern="Identity" Nullable="false" />
+    <Property Name="ResumePlatform" Type="int" Nullable="false" />
+    <Property Name="ResumeId" Type="varchar" MaxLength="32" Nullable="false" />
+    <Property Name="MatchPlatform" Type="int" />
+    <Property Name="MatchResumeId" Type="varchar" MaxLength="32" />
+    <Property Name="MatchDate" Type="datetime2" Precision="7" />
+    <Property Name="DownLoadDate" Type="datetime2" Precision="7" />
+    <Property Name="LibraryExist" Type="int" Nullable="false" />
+    <Property Name="Status" Type="int" Nullable="false" />
+    <Property Name="Email" Type="varchar" MaxLength="32" />
+    <Property Name="Cellphone" Type="varchar" MaxLength="32" />
+  </EntityType>
+  <EntityContainer Name="ResumeRepairEntityStoreContainer">
+    <EntitySet Name="AuthorizationAccount" EntityType="Self.AuthorizationAccount" Schema="dbo" store:Type="Tables" />
+    <EntitySet Name="FenJianLi" EntityType="Self.FenJianLi" Schema="dbo" store:Type="Tables" />
+    <EntitySet Name="ResumeRecord" EntityType="Self.ResumeRecord" Schema="dbo" store:Type="Tables" />
+  </EntityContainer>
+</Schema>

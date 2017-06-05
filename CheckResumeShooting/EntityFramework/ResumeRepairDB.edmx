@@ -1,0 +1,183 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<edmx:Edmx Version="3.0" xmlns:edmx="http://schemas.microsoft.com/ado/2009/11/edmx">
+  <!-- EF Runtime content -->
+  <edmx:Runtime>
+    <!-- SSDL content -->
+    <edmx:StorageModels>
+    <Schema Namespace="ResumeRepairEntity.Store" Provider="System.Data.SqlClient" ProviderManifestToken="2012" Alias="Self" xmlns:store="http://schemas.microsoft.com/ado/2007/12/edm/EntityStoreSchemaGenerator" xmlns:customannotation="http://schemas.microsoft.com/ado/2013/11/edm/customannotation" xmlns="http://schemas.microsoft.com/ado/2009/11/edm/ssdl">
+        <EntityType Name="AuthorizationAccount">
+          <Key>
+            <PropertyRef Name="Id" />
+          </Key>
+          <Property Name="Id" Type="int" StoreGeneratedPattern="Identity" Nullable="false" />
+          <Property Name="ExtendParam" Type="varchar" MaxLength="32" Nullable="false" />
+          <Property Name="UserName" Type="varchar" MaxLength="32" Nullable="false" />
+          <Property Name="PassWord" Type="varchar" MaxLength="32" Nullable="false" />
+          <Property Name="CreateDate" Type="datetime2" Precision="7" Nullable="false" />
+          <Property Name="IsEnable" Type="bit" Nullable="false" />
+        </EntityType>
+        <EntityType Name="FenJianLi">
+          <Key>
+            <PropertyRef Name="Id" />
+          </Key>
+          <Property Name="Id" Type="int" StoreGeneratedPattern="Identity" Nullable="false" />
+          <Property Name="Email" Type="varchar" MaxLength="32" Nullable="false" />
+          <Property Name="PassWord" Type="varchar" MaxLength="32" Nullable="false" />
+          <Property Name="CreateDate" Type="datetime2" Precision="7" Nullable="false" />
+          <Property Name="LastLoginDate" Type="datetime2" Precision="7" />
+          <Property Name="IsEnable" Type="bit" Nullable="false" />
+          <Property Name="Integral" Type="int" Nullable="false" />
+          <Property Name="IsActivation" Type="bit" Nullable="false" />
+          <Property Name="IsVerification" Type="bit" Nullable="false" />
+          <Property Name="VerificationAccount" Type="varchar" MaxLength="32" />
+          <Property Name="IsLocked" Type="bit" Nullable="false" />
+        </EntityType>
+        <EntityType Name="ResumeRecord">
+          <Key>
+            <PropertyRef Name="Id" />
+          </Key>
+          <Property Name="Id" Type="bigint" StoreGeneratedPattern="Identity" Nullable="false" />
+          <Property Name="ResumePlatform" Type="int" Nullable="false" />
+          <Property Name="ResumeId" Type="varchar" MaxLength="32" Nullable="false" />
+          <Property Name="MatchPlatform" Type="int" />
+          <Property Name="MatchResumeId" Type="varchar" MaxLength="32" />
+          <Property Name="MatchDate" Type="datetime2" Precision="7" />
+          <Property Name="DownLoadDate" Type="datetime2" Precision="7" />
+          <Property Name="LibraryExist" Type="int" Nullable="false" />
+          <Property Name="Status" Type="int" Nullable="false" />
+          <Property Name="Email" Type="varchar" MaxLength="32" />
+          <Property Name="Cellphone" Type="varchar" MaxLength="32" />
+        </EntityType>
+        <EntityContainer Name="ResumeRepairEntityStoreContainer">
+          <EntitySet Name="AuthorizationAccount" EntityType="Self.AuthorizationAccount" Schema="dbo" store:Type="Tables" />
+          <EntitySet Name="FenJianLi" EntityType="Self.FenJianLi" Schema="dbo" store:Type="Tables" />
+          <EntitySet Name="ResumeRecord" EntityType="Self.ResumeRecord" Schema="dbo" store:Type="Tables" />
+        </EntityContainer>
+      </Schema></edmx:StorageModels>
+    <!-- CSDL content -->
+    <edmx:ConceptualModels>
+      <Schema Namespace="ResumeRepairEntity" Alias="Self" annotation:UseStrongSpatialTypes="false" xmlns:annotation="http://schemas.microsoft.com/ado/2009/02/edm/annotation" xmlns:customannotation="http://schemas.microsoft.com/ado/2013/11/edm/customannotation" xmlns="http://schemas.microsoft.com/ado/2009/11/edm">
+        <EntityType Name="FenJianLi">
+          <Key>
+            <PropertyRef Name="Id" />
+          </Key>
+          <Property Name="Id" Type="Int32" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
+          <Property Name="Email" Type="String" MaxLength="32" FixedLength="false" Unicode="false" Nullable="false" />
+          <Property Name="PassWord" Type="String" MaxLength="32" FixedLength="false" Unicode="false" Nullable="false" />
+          <Property Name="CreateDate" Type="DateTime" Nullable="false" Precision="7" />
+          <Property Name="LastLoginDate" Type="DateTime" Precision="7" />
+          <Property Name="IsEnable" Type="Boolean" Nullable="false" />
+          <Property Name="Integral" Type="Int32" Nullable="false" />
+          <Property Name="IsActivation" Type="Boolean" Nullable="false" />
+          <Property Name="IsVerification" Type="Boolean" Nullable="false" />
+          <Property Name="VerificationAccount" Type="String" MaxLength="32" FixedLength="false" Unicode="false" />
+          <Property Name="IsLocked" Type="Boolean" Nullable="false" />
+        </EntityType>
+        <EntityContainer Name="ResumeRepairDBEntities" annotation:LazyLoadingEnabled="true">
+          <EntitySet Name="FenJianLi" EntityType="Self.FenJianLi" />
+          <EntitySet Name="AuthorizationAccount" EntityType="ResumeRepairEntity.AuthorizationAccount" />
+          <EntitySet Name="ResumeRecord" EntityType="ResumeRepairEntity.ResumeRecord" />
+        </EntityContainer>
+        <EntityType Name="AuthorizationAccount">
+          <Key>
+            <PropertyRef Name="Id" />
+          </Key>
+          <Property Name="Id" Type="Int32" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
+          <Property Name="ExtendParam" Type="String" Nullable="false" MaxLength="32" FixedLength="false" Unicode="false" />
+          <Property Name="UserName" Type="String" Nullable="false" MaxLength="32" FixedLength="false" Unicode="false" />
+          <Property Name="PassWord" Type="String" Nullable="false" MaxLength="32" FixedLength="false" Unicode="false" />
+          <Property Name="CreateDate" Type="DateTime" Nullable="false" Precision="7" />
+          <Property Name="IsEnable" Type="Boolean" Nullable="false" />
+        </EntityType>
+        <EntityType Name="ResumeRecord">
+          <Key>
+            <PropertyRef Name="Id" />
+          </Key>
+          <Property Name="Id" Type="Int64" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
+          <Property Name="ResumePlatform" Type="Int32" Nullable="false" />
+          <Property Name="ResumeId" Type="String" Nullable="false" MaxLength="32" FixedLength="false" Unicode="false" />
+          <Property Name="MatchPlatform" Type="Int32" />
+          <Property Name="MatchResumeId" Type="String" MaxLength="32" FixedLength="false" Unicode="false" />
+          <Property Name="MatchDate" Type="DateTime" Precision="7" />
+          <Property Name="DownLoadDate" Type="DateTime" Precision="7" />
+          <Property Name="LibraryExist" Type="Int32" Nullable="false" />
+          <Property Name="Status" Type="Int32" Nullable="false" />
+          <Property Name="Email" Type="String" MaxLength="32" FixedLength="false" Unicode="false" />
+          <Property Name="Cellphone" Type="String" MaxLength="32" FixedLength="false" Unicode="false" />
+        </EntityType>
+      </Schema>
+    </edmx:ConceptualModels>
+    <!-- C-S mapping content -->
+    <edmx:Mappings>
+      <Mapping Space="C-S" xmlns="http://schemas.microsoft.com/ado/2009/11/mapping/cs">
+        <EntityContainerMapping StorageEntityContainer="ResumeRepairEntityStoreContainer" CdmEntityContainer="ResumeRepairDBEntities">
+          <EntitySetMapping Name="FenJianLi">
+            <EntityTypeMapping TypeName="ResumeRepairEntity.FenJianLi">
+              <MappingFragment StoreEntitySet="FenJianLi">
+                <ScalarProperty Name="IsLocked" ColumnName="IsLocked" />
+                <ScalarProperty Name="VerificationAccount" ColumnName="VerificationAccount" />
+                <ScalarProperty Name="IsVerification" ColumnName="IsVerification" />
+                <ScalarProperty Name="IsActivation" ColumnName="IsActivation" />
+                <ScalarProperty Name="Id" ColumnName="Id" />
+                <ScalarProperty Name="Email" ColumnName="Email" />
+                <ScalarProperty Name="PassWord" ColumnName="PassWord" />
+                <ScalarProperty Name="CreateDate" ColumnName="CreateDate" />
+                <ScalarProperty Name="LastLoginDate" ColumnName="LastLoginDate" />
+                <ScalarProperty Name="IsEnable" ColumnName="IsEnable" />
+                <ScalarProperty Name="Integral" ColumnName="Integral" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
+          <EntitySetMapping Name="AuthorizationAccount">
+            <EntityTypeMapping TypeName="ResumeRepairEntity.AuthorizationAccount">
+              <MappingFragment StoreEntitySet="AuthorizationAccount">
+                <ScalarProperty Name="IsEnable" ColumnName="IsEnable" />
+                <ScalarProperty Name="CreateDate" ColumnName="CreateDate" />
+                <ScalarProperty Name="PassWord" ColumnName="PassWord" />
+                <ScalarProperty Name="UserName" ColumnName="UserName" />
+                <ScalarProperty Name="ExtendParam" ColumnName="ExtendParam" />
+                <ScalarProperty Name="Id" ColumnName="Id" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
+          <EntitySetMapping Name="ResumeRecord">
+            <EntityTypeMapping TypeName="ResumeRepairEntity.ResumeRecord">
+              <MappingFragment StoreEntitySet="ResumeRecord">
+                <ScalarProperty Name="Cellphone" ColumnName="Cellphone" />
+                <ScalarProperty Name="Email" ColumnName="Email" />
+                <ScalarProperty Name="Status" ColumnName="Status" />
+                <ScalarProperty Name="LibraryExist" ColumnName="LibraryExist" />
+                <ScalarProperty Name="DownLoadDate" ColumnName="DownLoadDate" />
+                <ScalarProperty Name="MatchDate" ColumnName="MatchDate" />
+                <ScalarProperty Name="MatchResumeId" ColumnName="MatchResumeId" />
+                <ScalarProperty Name="MatchPlatform" ColumnName="MatchPlatform" />
+                <ScalarProperty Name="ResumeId" ColumnName="ResumeId" />
+                <ScalarProperty Name="ResumePlatform" ColumnName="ResumePlatform" />
+                <ScalarProperty Name="Id" ColumnName="Id" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
+        </EntityContainerMapping>
+      </Mapping>
+    </edmx:Mappings>
+  </edmx:Runtime>
+  <!-- EF Designer content (DO NOT EDIT MANUALLY BELOW HERE) -->
+  <Designer xmlns="http://schemas.microsoft.com/ado/2009/11/edmx">
+    <Connection>
+      <DesignerInfoPropertySet>
+        <DesignerProperty Name="MetadataArtifactProcessing" Value="EmbedInOutputAssembly" />
+      </DesignerInfoPropertySet>
+    </Connection>
+    <Options>
+      <DesignerInfoPropertySet>
+        <DesignerProperty Name="ValidateOnBuild" Value="true" />
+        <DesignerProperty Name="EnablePluralization" Value="false" />
+        <DesignerProperty Name="IncludeForeignKeysInModel" Value="true" />
+        <DesignerProperty Name="UseLegacyProvider" Value="false" />
+        <DesignerProperty Name="CodeGenerationStrategy" Value="无" />
+      </DesignerInfoPropertySet>
+    </Options>
+    <!-- Diagram content (shape and connector positions) -->
+    <Diagrams></Diagrams>
+  </Designer>
+</edmx:Edmx>

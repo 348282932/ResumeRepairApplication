@@ -1,0 +1,51 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Schema Namespace="ResumeRepairEntity" Alias="Self" annotation:UseStrongSpatialTypes="false" xmlns:annotation="http://schemas.microsoft.com/ado/2009/02/edm/annotation" xmlns:customannotation="http://schemas.microsoft.com/ado/2013/11/edm/customannotation" xmlns="http://schemas.microsoft.com/ado/2009/11/edm">
+  <EntityType Name="FenJianLi">
+    <Key>
+      <PropertyRef Name="Id" />
+    </Key>
+    <Property Name="Id" Type="Int32" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
+    <Property Name="Email" Type="String" MaxLength="32" FixedLength="false" Unicode="false" Nullable="false" />
+    <Property Name="PassWord" Type="String" MaxLength="32" FixedLength="false" Unicode="false" Nullable="false" />
+    <Property Name="CreateDate" Type="DateTime" Nullable="false" Precision="7" />
+    <Property Name="LastLoginDate" Type="DateTime" Precision="7" />
+    <Property Name="IsEnable" Type="Boolean" Nullable="false" />
+    <Property Name="Integral" Type="Int32" Nullable="false" />
+    <Property Name="IsActivation" Type="Boolean" Nullable="false" />
+    <Property Name="IsVerification" Type="Boolean" Nullable="false" />
+    <Property Name="VerificationAccount" Type="String" MaxLength="32" FixedLength="false" Unicode="false" />
+    <Property Name="IsLocked" Type="Boolean" Nullable="false" />
+  </EntityType>
+  <EntityContainer Name="ResumeRepairDBEntities" annotation:LazyLoadingEnabled="true">
+    <EntitySet Name="FenJianLi" EntityType="Self.FenJianLi" />
+    <EntitySet Name="AuthorizationAccount" EntityType="ResumeRepairEntity.AuthorizationAccount" />
+    <EntitySet Name="ResumeRecord" EntityType="ResumeRepairEntity.ResumeRecord" />
+  </EntityContainer>
+  <EntityType Name="AuthorizationAccount">
+    <Key>
+      <PropertyRef Name="Id" />
+    </Key>
+    <Property Name="Id" Type="Int32" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
+    <Property Name="ExtendParam" Type="String" Nullable="false" MaxLength="32" FixedLength="false" Unicode="false" />
+    <Property Name="UserName" Type="String" Nullable="false" MaxLength="32" FixedLength="false" Unicode="false" />
+    <Property Name="PassWord" Type="String" Nullable="false" MaxLength="32" FixedLength="false" Unicode="false" />
+    <Property Name="CreateDate" Type="DateTime" Nullable="false" Precision="7" />
+    <Property Name="IsEnable" Type="Boolean" Nullable="false" />
+  </EntityType>
+  <EntityType Name="ResumeRecord">
+    <Key>
+      <PropertyRef Name="Id" />
+    </Key>
+    <Property Name="Id" Type="Int64" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
+    <Property Name="ResumePlatform" Type="Int32" Nullable="false" />
+    <Property Name="ResumeId" Type="String" Nullable="false" MaxLength="32" FixedLength="false" Unicode="false" />
+    <Property Name="MatchPlatform" Type="Int32" />
+    <Property Name="MatchResumeId" Type="String" MaxLength="32" FixedLength="false" Unicode="false" />
+    <Property Name="MatchDate" Type="DateTime" Precision="7" />
+    <Property Name="DownLoadDate" Type="DateTime" Precision="7" />
+    <Property Name="LibraryExist" Type="Int32" Nullable="false" />
+    <Property Name="Status" Type="Int32" Nullable="false" />
+    <Property Name="Email" Type="String" MaxLength="32" FixedLength="false" Unicode="false" />
+    <Property Name="Cellphone" Type="String" MaxLength="32" FixedLength="false" Unicode="false" />
+  </EntityType>
+</Schema>
