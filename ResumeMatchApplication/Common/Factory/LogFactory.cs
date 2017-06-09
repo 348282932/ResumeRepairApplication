@@ -11,7 +11,7 @@ namespace ResumeMatchApplication.Common
 
         private static ILog _logger;
 
-        public static void Info(string content, MessageSubjectEnum messageSubject)
+        public static void Info(string content, MessageSubjectEnum messageSubject = MessageSubjectEnum.System)
         {
             _logger = LogManager.GetLogger("Info");
 
@@ -22,7 +22,7 @@ namespace ResumeMatchApplication.Common
             Console.WriteLine(content);
         }
 
-        public static void Error(string content, MessageSubjectEnum messageSubject)
+        public static void Error(string content, MessageSubjectEnum messageSubject = MessageSubjectEnum.System)
         {
             _logger = LogManager.GetLogger("Error");
 
@@ -33,7 +33,7 @@ namespace ResumeMatchApplication.Common
             Console.WriteLine(content);
         }
 
-        public static void Warn(string content, MessageSubjectEnum messageSubject)
+        public static void Warn(string content, MessageSubjectEnum messageSubject = MessageSubjectEnum.System)
         {
             _logger = LogManager.GetLogger("Warn");
 
@@ -44,7 +44,7 @@ namespace ResumeMatchApplication.Common
             Console.WriteLine(content);
         }
 
-        public static void Debug(string content, MessageSubjectEnum messageSubject)
+        public static void Debug(string content, MessageSubjectEnum messageSubject = MessageSubjectEnum.System)
         {
             _logger = LogManager.GetLogger("Debug");
 

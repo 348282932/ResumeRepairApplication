@@ -78,9 +78,21 @@ namespace ResumeMatchApplication.Platform.FenJianLi
                     
                     var activationCode = Regex.Match(content, "(?s)code=(.+?)</a>").Result("$1").Substring(2);
 
-                    var host = Global.IsEnanbleProxy ? GetProxy(true) : string.Empty;
+                    var host = string.Empty;
+
+                    if (Global.IsEnanbleProxy)
+                    {
+                        if (!string.IsNullOrWhiteSpace(user.Host))
+                        {
+                            host = user.Host;
+
+                            GetProxy("FJL_Activation",user.Host);
+                        }
+                    }
 
                     var dataResult = Activation(activationCode, user.Email, host);
+
+                    ReleaseProxy("FJL_Activation",host);
 
                     if (dataResult == null) continue;
 

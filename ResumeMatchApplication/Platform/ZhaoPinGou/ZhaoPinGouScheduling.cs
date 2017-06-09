@@ -48,7 +48,7 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
 
             var workLists = new List<Tuple<Func<DataResult>, int, string, bool>>
             {
-                new Tuple<Func<DataResult>, int, string, bool>(new RegisterSpider().Init, 5 * 1000, "注册", false),
+                //new Tuple<Func<DataResult>, int, string, bool>(new RegisterSpider().Init, 5 * 1000, "注册", false),
                 new Tuple<Func<DataResult>, int, string, bool>(new ActivationSpider().Init, 10 * 1000, "激活", false)
             };
 

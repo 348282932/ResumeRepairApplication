@@ -91,6 +91,8 @@ namespace ResumeMatchApplication.Api
                                     LogFactory.Info($"简历库匹配成功！ResumeId：{resume.ResumeId}",MessageSubjectEnum.ZhaoPinGou);
                                 }
 
+                                Finish(resumes);
+
                                 list.RemoveAll(r => arr.Any(a => a == r.ResumeNumber));
                             }
 
@@ -115,6 +117,46 @@ namespace ResumeMatchApplication.Api
             }
 
             return list;
+        }
+
+        /// <summary>
+        /// 销毁匹配到的简历
+        /// </summary>
+        /// <param name="list"></param>
+        private static void Finish(IReadOnlyCollection<ResumeComplete> list)
+        {
+            var param = new
+            {
+                Username = Global.UserName,
+                ResumeSummaries = new List<object>()
+            };
+
+            var resumeIdArr = list.Select(s => s.MatchResumeId).ToArray();
+
+            param.ResumeSummaries.AddRange(list.Select(s => new { ResumeId = s.MatchResumeId }));
+
+            for (var i = 0; i < 3; i++)
+            {
+                var dataResult = RequestFactory.QueryRequest(Global.HostChen + "/api/zhaopingou/finish", JsonConvert.SerializeObject(param), RequestEnum.POST, contentType: ContentTypeEnum.Json.Description());
+
+                if (dataResult.IsSuccess)
+                {
+                    var jObject = JsonConvert.DeserializeObject(dataResult.Data) as JObject;
+
+                    if (jObject == null) continue;
+
+                    if ((int)jObject["Code"] != 0)
+                    {
+                        LogFactory.Warn("简历销毁失败！异常信息：" + jObject["Message"], MessageSubjectEnum.ZhaoPinGou);
+                    }
+
+                    LogFactory.Warn("简历销毁成功！MatchResumeId：" + string.Join(",",resumeIdArr), MessageSubjectEnum.ZhaoPinGou);
+
+                    break;
+                }
+
+                LogFactory.Warn("简历过滤 API 筛选简历异常！异常信息：" + dataResult.ErrorMsg, MessageSubjectEnum.API);
+            }
         }
     }
 }

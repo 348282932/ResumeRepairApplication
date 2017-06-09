@@ -39,7 +39,6 @@ C:\Source Code\Git\ResumeRepairApplication\ResumeMatchApplication\bin\Release\fr
 C:\Source Code\Git\ResumeRepairApplication\ResumeMatchApplication\bin\Release\ja\Npgsql.resources.dll
 C:\Source Code\Git\ResumeRepairApplication\ResumeMatchApplication\bin\Release\zh-CN\Npgsql.resources.dll
 C:\Source Code\Git\ResumeRepairApplication\ResumeMatchApplication\bin\Release\ResumeMatchApplication.pssym
-C:\Source Code\Git\ResumeRepairApplication\ResumeMatchApplication\obj\Release\ResumeMatchApplication.csprojResolveAssemblyReference.cache
 C:\Source Code\Git\ResumeRepairApplication\ResumeMatchApplication\obj\Release\ResumeMatchApplication.csproj.ResumeMatchApplication.exe.config
 C:\Source Code\Git\ResumeRepairApplication\ResumeMatchApplication\obj\Release\ResumeMatchApplication.exe.postsharp
 C:\Source Code\Git\ResumeRepairApplication\ResumeMatchApplication\obj\Release\ResumeMatchApplication.exe

@@ -75,9 +75,20 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
 
                     var url = "http://sctrack.info.zhaopingou.com/track/click/" + Regex.Match(content, "(?s)完成验证.+?com/track/click/(.+?html)\".style").Result("$1");
 
-                    var host = Global.IsEnanbleProxy ? GetProxy(true) : string.Empty;
+                    var host = string.Empty;
 
+                    if (Global.IsEnanbleProxy)
+                    {
+                        if (!string.IsNullOrWhiteSpace(user.Host))
+                        {
+                            host = user.Host;
+
+                            GetProxy("ZPG_Activation",user.Host);
+                        }
+                    }
                     var dataResult = Activation(url, user.Email, host);
+
+                    ReleaseProxy("ZPG_Activation", host);
 
                     if (dataResult == null) continue;
 

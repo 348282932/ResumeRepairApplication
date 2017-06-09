@@ -46,9 +46,9 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
 
                         if (ipArr.Length > 0)
                         {
-                            var proxy = db.Proxy.FirstOrDefault(f => ipArr.Any(a => a == f.Host) && f.Platform == 4 && !string.IsNullOrEmpty(f.Host));
+                            var proxy = db.Proxy.FirstOrDefault(f => ipArr.Any(a => a == f.Host) && f.Platform == 4 && !string.IsNullOrEmpty(f.Host) && f.Count < Global.PlatformHostCount);
 
-                            if (proxy != null && proxy.Count < Global.PlatformHostCount)
+                            if (proxy != null)
                             {
                                 proxyId = proxy.Id;
 
@@ -73,7 +73,7 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
                             }
                         }
 
-                        var proxyEntity = new Proxy { Count = 1, Platform = 4 };
+                        var proxyEntity = new Proxy { Count = 1, Platform = 4};
 
                         db.Proxy.Add(proxyEntity);
 
@@ -90,9 +90,21 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
                 }
             }
 
-            if (string.IsNullOrWhiteSpace(host) && Global.IsEnanbleProxy) host = GetProxy(true);
+            if (Global.IsEnanbleProxy)
+            {
+                if (string.IsNullOrWhiteSpace(host))
+                {
+                    host = GetProxy("ZPG_Register",true);
+                }
+                else
+                {
+                    GetProxy("ZPG_Register",host);
+                }
+            }
 
             var dataResult = Register(host);
+
+            ReleaseProxy("ZPG_Register",host);
 
             using (var db = new ResumeMatchDBEntities())
             {
@@ -130,7 +142,7 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
                         RequestNumber = 0
                     });
 
-                    if (!string.IsNullOrWhiteSpace(host) && proxy != null)
+                    if (proxy != null)
                     {
                         proxy.Host = host;
                     }
@@ -154,7 +166,7 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
 
             var userName = password + Global.Email.Substring(Global.Email.IndexOf("@", StringComparison.Ordinal));
 
-            //RequestFactory.QueryRequest("http://qiye.zhaopingou.com/signup", cookieContainer: cookie, host: host);
+            RequestFactory.QueryRequest("http://qiye.zhaopingou.com/signup", cookieContainer: cookie, host: host);
 
             var retryTimes = 2;
 

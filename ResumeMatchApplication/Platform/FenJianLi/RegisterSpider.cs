@@ -109,9 +109,21 @@ namespace ResumeMatchApplication.Platform.FenJianLi
                 }
             }
 
-            if (string.IsNullOrWhiteSpace(host) && Global.IsEnanbleProxy) host = GetProxy(true);
+            if (Global.IsEnanbleProxy)
+            {
+                if (string.IsNullOrWhiteSpace(host))
+                {
+                    host = GetProxy("FJL_Register", true);
+                }
+                else
+                {
+                    GetProxy("FJL_Register", host);
+                }
+            }
 
             var dataResult = Register(host, inviteCode);
+
+            ReleaseProxy("FJL_Register",host);
 
             using (var db = new ResumeMatchDBEntities())
             {
@@ -142,7 +154,10 @@ namespace ResumeMatchApplication.Platform.FenJianLi
                         DownloadNumber = (255-2) / 3,
                         Host = host,
                         Platform = 1,
-                        Status = 0
+                        Status = 0,
+                        IsLocked = false,
+                        LockedTime = new DateTime(1900, 1, 1),
+                        RequestNumber = 0
                     });
 
                     if (!string.IsNullOrWhiteSpace(inviteCode))
@@ -151,7 +166,7 @@ namespace ResumeMatchApplication.Platform.FenJianLi
 
                         if (user != null) user.DownloadNumber += 100;
                     }
-                    if (!string.IsNullOrWhiteSpace(host) && proxy != null)
+                    if (proxy != null)
                     {
                         proxy.Host = host;
                     }
@@ -187,7 +202,7 @@ namespace ResumeMatchApplication.Platform.FenJianLi
 
             if (id == null) throw new RequestException("获取注册 ID 失败，失败原因：请求异常，导致解析HTML出错，源码："+ dataResult.Data);
 
-            var password = DateTime.Now.ToString("yyyyMMddHHmmss");
+            var password = BaseFanctory.GetRandomTel();
 
             var username = password + Global.Email.Substring(Global.Email.IndexOf("@", StringComparison.Ordinal));
 

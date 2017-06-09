@@ -46,9 +46,8 @@ namespace ResumeMatchApplication.Platform.FenJianLi
 
             var workLists = new List<Tuple<Func<DataResult>, int, string, bool>>
             {
-                new Tuple<Func<DataResult>, int, string, bool>(new RegisterSpider().Init, 5 * 1000, "注册", false),
+                //new Tuple<Func<DataResult>, int, string, bool>(new RegisterSpider().Init, 5 * 1000, "注册", false),
                 new Tuple<Func<DataResult>, int, string, bool>(new ActivationSpider().Init, 10 * 1000, "激活", false)
-                //new Tuple<Func<DataResult>, int, string, bool>(new ContactInformationSpider().Init, 10 * 1000, "下载", false),
             };
 
             var threadCount = 0;
@@ -185,7 +184,7 @@ namespace ResumeMatchApplication.Platform.FenJianLi
 
                 if (!dataResult.IsSuccess)
                 {
-                    LogFactory.Error(dataResult.ErrorMsg, MessageSubjectEnum.FenJianLi); ;
+                    LogFactory.Error(dataResult.ErrorMsg, MessageSubjectEnum.FenJianLi);
                 }
 
                 _workTimer.Interval = _interval;

@@ -25,6 +25,8 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
 
         private static readonly Random random = new Random();
 
+        private static readonly object lockObj = new object();
+
         /// <summary>
         /// 获取简历ID
         /// </summary>
@@ -40,123 +42,125 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
 
             User user;
 
-            using (var db = new ResumeMatchDBEntities())
+            lock (lockObj)
             {
-                if (userDictionary.Keys.All(a => a.Host != host))
+                using (var db = new ResumeMatchDBEntities())
                 {
-                    var users = db.User.Where(w => w.IsEnable && w.Platform == 4 && w.Status == 1 && w.Host == host).ToList();
-
-                    if (!users.Any())
+                    if (userDictionary.Keys.All(a => a.Host != host))
                     {
-                        dataResult.IsSuccess = false;
+                        var users = db.User.Where(w => w.IsEnable && w.Platform == 4 && w.Status == 1 && w.Host == host).ToList();
 
-                        dataResult.Code = ResultCodeEnum.NoUsers;
-
-                        return dataResult;
-                    }
-
-                    foreach (var item in users)
-                    {
-                        for (var i = 0; i < 5; i++)
+                        if (!users.Any())
                         {
-                            if (userDictionary.TryAdd(item, null)) break;
+                            dataResult.IsSuccess = false;
 
-                            if (i == 4) LogFactory.Warn($"向字典中添加用户 {item.Email} 失败！", MessageSubjectEnum.ZhaoPinGou);
+                            dataResult.Code = ResultCodeEnum.NoUsers;
+
+                            return dataResult;
                         }
-                    }
-                }
 
-                Next:
-
-                user = userDictionary.Keys
-                    //.OrderBy(o=>o.Email)
-                    .FirstOrDefault(f => f.IsEnable && f.Host == host && (f.RequestDate < DateTime.UtcNow.Date || f.RequestDate == DateTime.UtcNow.Date && f.RequestNumber < Global.TodayMaxRequestNumber || f.RequestDate == null));
-
-                if (user == null)
-                {
-                    dataResult.IsSuccess = false;
-
-                    dataResult.Code = ResultCodeEnum.RequestUpperLimit;
-
-                    var list = userDictionary.Keys.Where(w => w.Host == host);
-
-                    foreach (var item in list)
-                    {
-                        for (var i = 0; i < 5; i++)
+                        foreach (var item in users)
                         {
-                            if (userDictionary.TryRemove(item, out cookie)) break;
-
-                            if (i == 4)
+                            for (var i = 0; i < 5; i++)
                             {
-                                LogFactory.Warn($"从字典中移除用户 {item.Email} 失败！", MessageSubjectEnum.ZhaoPinGou);
+                                if (userDictionary.TryAdd(item, null)) break;
 
-                                dataResult.ErrorMsg += $"向字典中移除用户 {item.Email} 失败！";
-
-                                return dataResult;
+                                if (i == 4) LogFactory.Warn($"向字典中添加用户 {item.Email} 失败！", MessageSubjectEnum.ZhaoPinGou);
                             }
                         }
                     }
 
-                    return dataResult;
-                }
+                    Next:
 
-                if (user.RequestDate == null || user.RequestDate < DateTime.Today.ToUniversalTime())
-                {
-                    user.RequestDate = DateTime.UtcNow;
+                    user = userDictionary.Keys
+                        .Where(f => f.IsEnable && f.Host == host && ( f.RequestDate == null || f.RequestDate.Value.Date < DateTime.UtcNow.Date || f.RequestDate.Value.Date == DateTime.UtcNow.Date && f.RequestNumber < Global.TodayMaxRequestNumber))
+                        .OrderBy(o=>o.RequestNumber)
+                        .FirstOrDefault();
 
-                    user.RequestNumber = 0;
-                }
-
-                user.RequestNumber++;
-
-                for (var i = 0; i < 5; i++)
-                {
-                    if (userDictionary.TryGetValue(user, out cookie)) break;
-                }
-
-                if (cookie == null)
-                {
-                    var result = Login(user.Email, user.Password, host);
-
-                    if (!result.IsSuccess)
+                    if (user == null)
                     {
-                        LogFactory.Warn(result.ErrorMsg, MessageSubjectEnum.ZhaoPinGou);
-
                         dataResult.IsSuccess = false;
+
+                        dataResult.Code = ResultCodeEnum.RequestUpperLimit;
+
+                        LogFactory.Warn(JsonConvert.SerializeObject(userDictionary),MessageSubjectEnum.ZhaoPinGou);
+
+                        var list = userDictionary.Keys.Where(w => w.Host == host);
+
+                        foreach (var item in list)
+                        {
+                            for (var i = 0; i < 5; i++)
+                            {
+                                if (userDictionary.TryRemove(item, out cookie)) break;
+
+                                if (i == 4)
+                                {
+                                    LogFactory.Warn($"从字典中移除用户 {item.Email} 失败！", MessageSubjectEnum.ZhaoPinGou);
+
+                                    dataResult.ErrorMsg += $"向字典中移除用户 {item.Email} 失败！";
+
+                                    return dataResult;
+                                }
+                            }
+                        }
 
                         return dataResult;
                     }
 
-                    cookie = result.Data;
-
-                    if (cookie != null)
+                    if (user.RequestDate == null || user.RequestDate.Value.Date < DateTime.UtcNow.Date)
                     {
-                        for (var i = 0; i < 5; i++)
+                        user.RequestDate = DateTime.UtcNow.Date;
+
+                        user.RequestNumber = 0;
+                    }
+
+                    user.RequestNumber++;
+
+                    for (var i = 0; i < 5; i++)
+                    {
+                        if (userDictionary.TryGetValue(user, out cookie)) break;
+                    }
+
+                    if (cookie == null)
+                    {
+                        var result = Login(user.Email, user.Password, host);
+
+                        if (!result.IsSuccess)
                         {
-                            if (userDictionary.TryUpdate(user, cookie, null)) break;
+                            LogFactory.Warn(result.ErrorMsg, MessageSubjectEnum.ZhaoPinGou);
+
+                            dataResult.IsSuccess = false;
+
+                            return dataResult;
+                        }
+
+                        cookie = result.Data;
+
+                        if (cookie != null)
+                        {
+                            for (var i = 0; i < 5; i++)
+                            {
+                                if (userDictionary.TryUpdate(user, cookie, null)) break;
+                            }
                         }
                     }
+
+                    if (cookie == null)
+                    {
+                        goto Next;
+                    }
+
+                    var userEntity = db.User.FirstOrDefault(f=>f.Id == user.Id);
+
+                    if (userEntity != null)
+                    {
+                        userEntity.RequestDate = user.RequestDate;
+
+                        userEntity.RequestNumber = user.RequestNumber;
+                    }
+
+                    db.TransactionSaveChanges();
                 }
-
-                if (cookie == null)
-                {
-                    user.IsEnable = false;
-
-                    goto Next;
-                }
-
-                var userEntity = db.User.FirstOrDefault(f=>f.Id == user.Id);
-
-                if (userEntity != null)
-                {
-                    userEntity.RequestDate = user.RequestDate;
-
-                    userEntity.RequestNumber = user.RequestNumber;
-
-                    userEntity.IsEnable = user.IsEnable;
-                }
-
-                db.TransactionSaveChanges();
             }
 
             var count = 0;
@@ -348,6 +352,8 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
                 var selfEvaluation = Regex.Match(dataResult.Data, "(?s)自我评价.+?<p class='ptxt'>(.+?)</p>").Result("$1");
 
                 selfEvaluation = selfEvaluation.Replace("<br>", "\r\n").Replace("<span class='search_check'>","").Replace("</span>","").Replace("<BR>", "\r\n").Replace(" ","");
+
+                if (selfEvaluation.Length <= 2) continue;
 
                 var start = random.Next(0, selfEvaluation.Length / 2 - 1);
 

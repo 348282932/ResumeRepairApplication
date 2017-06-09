@@ -42,7 +42,9 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
             {
                 if (userDictionary.Keys.All(a => a.Host != host) && isFirst)
                 {
-                    var users = db.User.Where(w => w.IsEnable && w.Platform == 4 && w.Status == 1 && w.Host == host && w.DownloadNumber > 0).ToList();
+                    var dateTime = DateTime.UtcNow.Date;
+
+                    var users = db.User.Where(w => w.IsEnable && w.Platform == 4 && w.Status == 1 && w.Host == host && (w.DownloadNumber > 0 || w.LastLoginTime < dateTime)).ToList();
 
                     if (!users.Any())
                     {
@@ -78,7 +80,7 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
 
                 if (user == null)
                 {
-                    dataResult.ErrorMsg += $"字典中找不到 Host 对应的可用用户! Host：{host} 失败！";
+                    dataResult.Code = ResultCodeEnum.NoUsers;
 
                     var list = userDictionary.Keys.Where(w => w.Host == host);
 
@@ -238,24 +240,37 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
 
                 var email = Regex.IsMatch(resumeHtml, "(?s)邮箱：</label>(.+?)</p>") ? Regex.Match(resumeHtml, "(?s)邮箱：</label>(.+?)</p>").Result("$1") : null;
 
-                var matchedResult = new List<ResumeMatchResult>();
-
-                matchedResult.Add(new ResumeMatchResult
-                {
-                    ResumeNumber = data.ResumeNumber,
-                    Cellphone = cellphone,
-                    Email = email,
-                    Status = 2
-                });
+                var name = Regex.IsMatch(resumeHtml, "(?s)'resumeb-head-top'><h2>(.+?)</h2><p>") ? Regex.Match(resumeHtml, "(?s)'resumeb-head-top'><h2>(.+?)</h2><p>").Result("$1") : null;
 
                 resumeEntity.PostBackStatus = 2;
 
-                if (ApiBase.PostResumes(matchedResult))
-                {
-                    resumeEntity.PostBackStatus = 1;
-                }
-
                 resumeEntity.Status = 6;
+
+                if (resumeEntity.Name == name)
+                {
+                    var matchedResult = new List<ResumeMatchResult>();
+
+                    matchedResult.Add(new ResumeMatchResult
+                    {
+                        ResumeNumber = data.ResumeNumber,
+                        Cellphone = cellphone,
+                        Email = email,
+                        Status = 2
+                    });
+
+                    if (ApiBase.PostResumes(matchedResult))
+                    {
+                        resumeEntity.PostBackStatus = 1;
+                    }
+                }
+                else
+                {
+                    LogFactory.Warn($"姓名校验异常！库中简历姓名：{resumeEntity.Name}，下载简历姓名：{name}");
+
+                    resumeEntity.PostBackStatus = 0;
+
+                    resumeEntity.Status = 8;
+                }
 
                 resumeEntity.Email = email;
 
@@ -328,6 +343,7 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
         /// <param name="host"></param>
         /// <param name="folderId"></param>
         /// <returns></returns>
+        [Loggable]
         private static DataResult UnLockResume(CookieContainer cookie, User user, string token, string resumeId, string host, string folderId)
         {
             var dataResult = new DataResult();

@@ -19,18 +19,17 @@ namespace ResumeMatchApplication.Api
         /// <returns></returns>
         public static List<ResumeSearch> PullResumes()
         {
+            var list = PullResumesByZeLin();
+
+            if (list != null) return list;
+
             var resumesList = new List<ResumeSearch>();
 
             Retry:
 
-            var dataResult = RequestFactory.QueryRequest(Global.HostZhao + "/splider/Resume/GetResumeWithNoDeal?rowcount=1");
+            var dataResult = RequestFactory.QueryRequest(Global.HostZhao + "/splider/Resume/GetResumeWithNoDeal?rowcount=10");
 
-            if (!dataResult.IsSuccess || string.IsNullOrWhiteSpace(dataResult.Data))
-            {
-                LogFactory.Error("获取简历 Api 调用异常,响应信息：" + dataResult.ErrorMsg, MessageSubjectEnum.API);
-
-                goto Retry;
-            }
+            if (!dataResult.IsSuccess || string.IsNullOrWhiteSpace(dataResult.Data)) goto Retry;
 
             var jObject = JsonConvert.DeserializeObject(dataResult.Data) as JObject;
 
@@ -77,8 +76,18 @@ namespace ResumeMatchApplication.Api
                 }
             }
 
+            if (resumesList.Count == 0) goto Retry;
+
             using (var db = new ResumeMatchDBEntities())
             {
+                var resumeIdArr = resumesList.Select(s => s.ResumeId).ToArray();
+
+                var resumes = db.ResumeComplete.Where(w => resumeIdArr.Any(a => a == w.ResumeId));
+
+                db.ResumeComplete.RemoveRange(resumes);
+
+                db.TransactionSaveChanges();
+
                 db.ResumeComplete.AddRange(resumesList.Select(s => new ResumeComplete
                 {
                     CreateTime = DateTime.UtcNow,
@@ -94,7 +103,100 @@ namespace ResumeMatchApplication.Api
                     Status = 0,
                     University = s.University,
                     UserMasterExtId = s.UserMasterExtId,
-                    Degree = s.Degree
+                    Degree = s.Degree,
+                    Weights = 0
+                }));
+
+                db.TransactionSaveChanges();
+            }
+
+            return FilterExist(resumesList);
+        }
+
+        private static List<ResumeSearch> PullResumesByZeLin()
+        {
+            var resumesList = new List<ResumeSearch>();
+
+            Retry:
+
+            var dataResult = RequestFactory.QueryRequest(Global.HostZhao + "/splider/Resume/GetResumeWithNoDeal_ZL?rowcount=10");
+
+            if (!dataResult.IsSuccess || string.IsNullOrWhiteSpace(dataResult.Data)) goto Retry;
+
+            var jObject = JsonConvert.DeserializeObject(dataResult.Data) as JObject;
+
+            if (jObject != null)
+            {
+                var jArray = jObject["Resumes"] as JArray;
+
+                if (jArray == null || jArray.Count == 0)
+                {
+                    return null;
+                }
+
+                Global.TotalMatch += jArray.Count;
+
+                foreach (var item in jArray)
+                {
+                    var resume = new ResumeSearch();
+
+                    resume.Name = item["Name"].ToString();
+
+                    var worksArr = (JArray)item["Works"];
+
+                    resume.LastCompany = worksArr.Count > 0 ? worksArr[0]["Company"].ToString() : "";
+
+                    var educationsArr = (JArray)item["Educations"];
+
+                    resume.University = educationsArr.Count > 0 ? educationsArr[0]["School"].ToString() : "";
+
+                    resume.ResumeId = item["Reference"]?["Id"].ToString();
+
+                    resume.ResumeNumber = ((JArray)item["Reference"]?["Mapping"])?[2]["Value"].ToString();
+
+                    resume.UserMasterExtId = ((JArray)item["Reference"]?["Mapping"])?[1]["Value"].ToString();
+
+                    resume.University = item["Educations"]?[0]?["School"].ToString();
+
+                    resume.Gender = item["Gender"].ToString() == "男" ? (short)0 : item["Gender"].ToString() == "女" ? (short)1 : (short)-1;
+
+                    resume.Degree = item["Degree"].ToString();
+
+                    resume.Introduction = item["Intention"]?["Evaluation"].ToString();
+
+                    resumesList.Add(resume);
+                }
+            }
+
+            if (resumesList.Count == 0) return null;
+
+            using (var db = new ResumeMatchDBEntities())
+            {
+                var resumeIdArr = resumesList.Select(s => s.ResumeId).ToArray();
+
+                var resumes = db.ResumeComplete.Where(w => resumeIdArr.Any(a => a == w.ResumeId));
+
+                db.ResumeComplete.RemoveRange(resumes);
+
+                db.TransactionSaveChanges();
+
+                db.ResumeComplete.AddRange(resumesList.Select(s => new ResumeComplete
+                {
+                    CreateTime = DateTime.UtcNow,
+                    Gender = s.Gender,
+                    Introduction = s.Introduction,
+                    LastCompany = s.LastCompany,
+                    LibraryExist = 0,
+                    Name = s.Name,
+                    PostBackStatus = 0,
+                    ResumeId = s.ResumeId,
+                    ResumeNumber = s.ResumeNumber,
+                    ResumePlatform = 1,
+                    Status = 0,
+                    University = s.University,
+                    UserMasterExtId = s.UserMasterExtId,
+                    Degree = s.Degree,
+                    Weights = 1
                 }));
 
                 db.TransactionSaveChanges();

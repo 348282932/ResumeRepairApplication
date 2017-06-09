@@ -53,8 +53,15 @@
         public short ZhaoPinGouIsMatch { get; set; } = 0;
 
         /// <summary>
+        /// 是否匹配（0.未匹配 1.匹配成功 2.匹配失败）
+        /// </summary>
+        public short FenJianLiIsMatch { get; set; } = 0;
+
+        /// <summary>
         /// 是否搜索结束
         /// </summary>
         public bool IsEnd { get; set; } = false;
+
+        public MessageSubjectEnum MatchPlatform { get; set; }
     }
 }

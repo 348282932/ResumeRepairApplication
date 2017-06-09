@@ -49,10 +49,10 @@ namespace ResumeMatchApplication.Common
                     return dataResult;
                 }
 
-                if (isNeedSleep) SpinWait.SpinUntil(() => false, TimeSpan.FromSeconds(new Random().Next(2, 5)));
+                if (isNeedSleep) SpinWait.SpinUntil(() => false, TimeSpan.FromSeconds(new Random().Next(2, 3)));
             }
 
-            if(!url.IsInnerIP()) SpinWait.SpinUntil(() => false, TimeSpan.FromSeconds(new Random().Next(1, 1)));
+            if(!url.IsInnerIP()) SpinWait.SpinUntil(() => false, TimeSpan.FromSeconds(new Random().Next(2, 3)));
 
             try
             {
@@ -140,7 +140,7 @@ namespace ResumeMatchApplication.Common
             }
             catch (WebException ex)
             {
-                log4net.LogManager.GetLogger(typeof(RequestFactory)).Warn($"Web响应异常，请求Url:{url},请求参数:{requestParams}代理:{host},异常信息：{ex.Message}");
+                LogFactory.Warn($"Web响应异常，请求Url:{url},请求参数:{requestParams}代理:{host},异常信息：{ex.Message}");
 
                 dataResult.IsSuccess = false;
 
@@ -150,7 +150,7 @@ namespace ResumeMatchApplication.Common
             }
             catch(Exception ex)
             {
-                log4net.LogManager.GetLogger(typeof(RequestFactory)).Error($"请求异常，请求Url:{url},请求参数:{requestParams},Host:{host},{Environment.NewLine}异常信息：{ex.Message}{Environment.NewLine}{ex.StackTrace}");
+                LogFactory.Error($"请求异常，请求Url:{url},请求参数:{requestParams},Host:{host},{Environment.NewLine}异常信息：{ex.Message}{Environment.NewLine}{ex.StackTrace}");
 
                 dataResult.IsSuccess = false;
 
@@ -167,15 +167,17 @@ namespace ResumeMatchApplication.Common
         /// <returns></returns>
         private static bool WebProxyIsEnable(string host)
         {
-            // TODO API 检查 Host 是否可用
+            var ip = host.Substring(0, host.IndexOf(":", StringComparison.Ordinal));
 
-            var dataResult = QueryRequest(Global.HostZhao, host, contentType: ContentTypeEnum.Json.Description());
+            var port = host.Substring(host.IndexOf(":", StringComparison.Ordinal) + 1);
+
+            var dataResult = QueryRequest($"{Global.HostZhao}/splider/proxy/Check?IP={ip}&Port={port}");
 
             if (dataResult.IsSuccess)
             {
                 var jObject = JsonConvert.DeserializeObject(dataResult.Data) as JObject;
 
-                if((int)jObject?["Code"] == 0) return true;
+                if((int)jObject?["Code"] == 1) return true;
             }
 
             return false;

@@ -66,7 +66,7 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
 
                 result.Data = cookie;
 
-                RefreshFreeDownloadNumber(email, cookie);
+                RefreshFreeDownloadNumber(email, cookie, host);
 
                 return result;
             }
@@ -79,13 +79,14 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
         /// </summary>
         /// <param name="email"></param>
         /// <param name="cookie"></param>
-        private static void RefreshFreeDownloadNumber(string email, CookieContainer cookie)
+        /// <param name="host"></param>
+        private static void RefreshFreeDownloadNumber(string email, CookieContainer cookie, string host)
         {
             var userToken = cookie.GetCookies(new Uri("http://qiye.zhaopingou.com/"))["hrkeepToken"];
 
             var param = $"isAjax=1&clientNo=&userToken={userToken?.Value}&clientType=2";
 
-            var dataResult = RequestFactory.QueryRequest("http://qiye.zhaopingou.com/zhaopingou_interface/user_information?timestamp=" + BaseFanctory.GetUnixTimestamp(), param, RequestEnum.POST, cookie);
+            var dataResult = RequestFactory.QueryRequest("http://qiye.zhaopingou.com/zhaopingou_interface/user_information?timestamp=" + BaseFanctory.GetUnixTimestamp(), param, RequestEnum.POST, cookie, host:host, isNeedSleep:false);
 
             if (!dataResult.IsSuccess)
             {

@@ -398,9 +398,7 @@ namespace ResumeRepairApplication.Platform.FenJianLi
                     {
                         if (actionBlock.InputCount == 0)
                         {
-                            var datetime = dateNow.AddMonths(1);
-
-                            var resumes = db.ResumeRecord.Where(w => (w.PostBackStatus == 0 || w.PostBackStatus == 2) && w.Status == (short)ResumeRecordStatus.MatchSuccess && w.CreateTime > datetime).OrderByDescending(o=>o.CreateTime).ToList();
+                            var resumes = db.ResumeRecord.Where(w => (w.PostBackStatus == 0 || w.PostBackStatus == 2) && w.Status == (short)ResumeRecordStatus.MatchSuccess).OrderByDescending(o=>o.CreateTime).Take(50).ToList();
 
                             foreach (var item in resumes)
                             {

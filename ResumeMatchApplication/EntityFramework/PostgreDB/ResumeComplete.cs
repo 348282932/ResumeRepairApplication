@@ -85,7 +85,7 @@ namespace ResumeMatchApplication.EntityFramework.PostgreDB
         public short LibraryExist { get; set; }
 
         /// <summary>
-        /// 状态（0.待过滤 1.待匹配 2.匹配成功 3.匹配失败 4.下载成功 5.下载失败 6.补全成功, 7.补全失败）
+        /// 状态（0.待过滤 1.待匹配 2.匹配成功 3.匹配失败 4.下载成功 5.下载失败 6.补全成功, 7.补全失败 8.姓名检验失败）
         /// </summary>
         public short Status { get; set; }
 
@@ -125,6 +125,11 @@ namespace ResumeMatchApplication.EntityFramework.PostgreDB
         public short ZhaoPinGouIsMatch { get; set; } = 0;
 
         /// <summary>
+        /// 是否匹配（0.未匹配 1.匹配成功 2.匹配失败）
+        /// </summary>
+        public short FenJianLiIsMatch { get; set; } = 0;
+
+        /// <summary>
         /// 是否被锁定
         /// </summary>
         public bool IsLocked { get; set; }
@@ -133,5 +138,10 @@ namespace ResumeMatchApplication.EntityFramework.PostgreDB
         /// 锁定时间
         /// </summary>
         public DateTime LockedTime { get; set; }
+
+        /// <summary>
+        /// 权重（0.正常 1.泽林条件的简历）
+        /// </summary>
+        public short Weights { get; set; }
     }
 }

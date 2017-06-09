@@ -2,7 +2,6 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks.Dataflow;
 using ResumeMatchApplication.Common;
 using ResumeMatchApplication.EntityFramework.PostgreDB;
@@ -26,10 +25,12 @@ namespace ResumeMatchApplication.Works
 
             var proxyIsEnable = true;
 
-            // 招聘狗平台匹配块
+            // 招聘狗平台下载块
 
             var zhaoPinGouActionBlock = new ActionBlock<ResumeComplete>(data =>
             {
+                if (!zhaoPinGou) return;
+
                 var dataResult = Platform.ZhaoPinGou.DownloadResumeSpider.DownloadResume(data, host);
 
                 if(dataResult == null) return;
@@ -50,7 +51,7 @@ namespace ResumeMatchApplication.Works
 
                             zhaoPinGou = false;
 
-                            LogFactory.Info($"Host:{host} 对应的Host没有可用用户用于下载简历！", MessageSubjectEnum.ZhaoPinGou);
+                            LogFactory.Info($"Host:{host} 对应的Host没有可用用户用于下载简历！{dataResult.ErrorMsg}", MessageSubjectEnum.ZhaoPinGou);
 
                             break;
 
@@ -159,12 +160,30 @@ namespace ResumeMatchApplication.Works
                     {
                         var dateTime = DateTime.UtcNow.AddHours(-1);
 
-                        resumes = db.ResumeComplete.Where(w => w.Status == 2 && (!w.IsLocked || w.IsLocked && w.LockedTime < dateTime)).OrderByDescending(o => o.MatchTime).Take(20).ToList();
+                        var today = DateTime.UtcNow.Date;
 
-                        if (Global.IsEnanbleProxy)
+                        var downloadUserArr = db.User
+                                            .Where(w => !string.IsNullOrEmpty(w.Host) == Global.IsEnanbleProxy && (w.DownloadNumber > 0 || w.LastLoginTime < today || w.LastLoginTime == null))
+                                            .GroupBy(g => new { g.Host, g.Platform })
+                                            .Select(s=> s.Key)
+                                            .ToArray();
+
+                        var query = db.ResumeComplete
+                            .Where(w => w.Status == 2 && (!w.IsLocked || w.IsLocked && w.LockedTime < dateTime) && !string.IsNullOrEmpty(w.Host) == Global.IsEnanbleProxy);
+
+                        foreach (var item in downloadUserArr)
                         {
-                            resumes = resumes.Where(w => !string.IsNullOrEmpty(w.Host)).ToList();
+                            resumes.AddRange(query
+                                .Where(w => w.Host == item.Host && w.MatchPlatform == item.Platform)
+                                .OrderByDescending(o => o.Weights)
+                                .ThenByDescending(o => o.MatchTime)
+                                .Take(20));
                         }
+
+                        resumes = resumes
+                            .OrderByDescending(o => o.Weights)
+                            .ThenByDescending(o => o.MatchTime)
+                            .Take(20).ToList();
 
                         foreach (var resume in resumes)
                         {
@@ -195,15 +214,12 @@ namespace ResumeMatchApplication.Works
 
                 if (!string.IsNullOrWhiteSpace(hostResumeTemp.Key))
                 {
-                    while (true)
-                    {
-                        if (GetProxy(hostResumeTemp.Key)) break;
-
-                        Thread.Sleep(3000);
-                    }
+                    GetProxy("Download", hostResumeTemp.Key);
                 }
 
                 Work(hostResumeTemp.Key, hostResumeTemp.Value);
+
+                ReleaseProxy("Download", hostResumeTemp.Key);
 
                 if (isEnd)
                 {

@@ -49,7 +49,7 @@ namespace ResumeMatchApplication.Works
             var workLists = new List<Tuple<Func<DataResult>, int, string, bool>>
             {
                 new Tuple<Func<DataResult>, int, string, bool>(new MatchResumeWork().Init, 5 * 1000, "匹配简历", false),
-                new Tuple<Func<DataResult>, int, string, bool>(new DownloadResumeWork().Init, 5 * 1000, "下载简历", false)
+                //new Tuple<Func<DataResult>, int, string, bool>(new DownloadResumeWork().Init, 5 * 1000, "下载简历", false)
             };
 
             var threadCount = 0;
