@@ -11,7 +11,8 @@ namespace ResumeMatchApplication.Platform.FenJianLi
         /// </summary>
         /// <param name="email"></param>
         /// <param name="passWord"></param>
-        public static CookieContainer Login(string email, string passWord)
+        /// <param name="host"></param>
+        public static DataResult<CookieContainer> Login(string email, string passWord, string host)
         {
             var cookie = new CookieContainer();
 
@@ -19,7 +20,7 @@ namespace ResumeMatchApplication.Platform.FenJianLi
 
             cookie.Add(new Cookie { Name = "password", Value = passWord.MD5(), Domain = "www.fenjianli.com" });
 
-            return cookie;
+            return new DataResult<CookieContainer>(cookie);
         }
     }
 }

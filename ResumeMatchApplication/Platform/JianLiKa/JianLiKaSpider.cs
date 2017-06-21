@@ -1,15 +1,18 @@
 ﻿using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Text.RegularExpressions;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using ResumeMatchApplication.Common;
 using ResumeMatchApplication.EntityFramework.PostgreDB;
 using ResumeMatchApplication.Models;
 
-namespace ResumeMatchApplication.Platform.ZhaoPinGou
+namespace ResumeMatchApplication.Platform.JianLika
 {
-    public abstract class ZhaoPinGouSpider : BaseSpider
+    public abstract class JianLikaSpider : BaseSpider
     {
         /// <summary>
         /// 登录获取 Cookie
@@ -27,9 +30,9 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
 
             Jumps:
 
-            var param = $"userName={email}&password={passWord}&code=&clientNo=&userToken=&clientType=2";
+            var param = $"username={email}&password={passWord}&remember=on";
 
-            var dataResult = RequestFactory.QueryRequest("http://qiye.zhaopingou.com/zhaopingou_interface/security_login?timestamp=" + BaseFanctory.GetUnixTimestamp(), param, RequestEnum.POST, cookie, host: host);
+            var dataResult = RequestFactory.QueryRequest("http://www.jianlika.com/Index/login.html", param, RequestEnum.POST, cookie, host: host);
 
             if (!dataResult.IsSuccess)
             {
@@ -39,29 +42,26 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
 
                 return result;
             }
-            
+
             var jObject = JsonConvert.DeserializeObject(dataResult.Data) as JObject;
 
             if (jObject != null)
             {
-                if ((int)jObject["errorCode"] != 1)
+                if ((int)jObject["status"] != 1)
                 {
                     ++jumpsTimes;
-                   
-                    if (jumpsTimes > 1)
+
+                    if (jumpsTimes < 2)
                     {
-                        if (((string)jObject["message"]).Contains("用户不存在"))
+                        using (var db = new ResumeMatchDBEntities())
                         {
-                            using (var db = new ResumeMatchDBEntities())
+                            var user = db.User.FirstOrDefault(f => f.Email == email);
+
+                            if (user != null)
                             {
-                                var user = db.User.FirstOrDefault(f => f.Email == email);
+                                user.IsEnable = false;
 
-                                if (user != null)
-                                {
-                                    user.IsEnable = false;
-
-                                    db.TransactionSaveChanges();
-                                }
+                                db.TransactionSaveChanges();
                             }
                         }
 
@@ -71,13 +71,9 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
 
                         return result;
                     }
-                    
+
                     goto Jumps;
                 }
-
-                cookie.Add(new Cookie { Name = "hrkeepToken", Value = jObject["user"]?["user_token"].ToString(), Domain = ".zhaopingou.com" });
-
-                cookie.Add(new Cookie { Name = "zhaopingou_select_city", Value = "-1", Domain = ".zhaopingou.com" });
 
                 result.Data = cookie;
 
@@ -95,9 +91,9 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
 
                     if (retryCount < 2) goto Retry;
 
-                    LogFactory.Error($"刷新简历下载数异常！异常信息：{ex.Message} 堆栈信息：{ex.TargetSite}",MessageSubjectEnum.ZhaoPinGou);
+                    LogFactory.Error($"刷新简历下载数异常！异常信息：{ex.Message} 堆栈信息：{ex.TargetSite}", MessageSubjectEnum.JianLiKa);
                 }
-                
+
 
                 return result;
             }
@@ -113,37 +109,26 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
         /// <param name="host"></param>
         private static void RefreshFreeDownloadNumber(string email, CookieContainer cookie, string host)
         {
-            var userToken = cookie.GetCookies(new Uri("http://qiye.zhaopingou.com/"))["hrkeepToken"];
-
-            var param = $"isAjax=1&clientNo=&userToken={userToken?.Value}&clientType=2";
-
-            var dataResult = RequestFactory.QueryRequest("http://qiye.zhaopingou.com/zhaopingou_interface/user_information?timestamp=" + BaseFanctory.GetUnixTimestamp(), param, RequestEnum.POST, cookie, host:host);
+            var dataResult = RequestFactory.QueryRequest("http://www.jianlika.com/Search", cookieContainer: cookie, host: host);
 
             if (!dataResult.IsSuccess)
             {
-                LogFactory.Warn($"用户登录刷新下载数异常！异常用户：{email}",MessageSubjectEnum.ZhaoPinGou);
+                LogFactory.Warn($"用户登录刷新下载数异常！异常用户：{email}", MessageSubjectEnum.JianLiKa);
 
                 return;
             }
 
-            var jObject = JsonConvert.DeserializeObject(dataResult.Data) as JObject;
+            var html = dataResult.Data;
 
-            if (jObject != null)
+            if (Regex.IsMatch(html, "class=\"ico-png-money\"></i><span>(\\d+)"))
             {
-                if ((int)jObject["errorCode"] != 1)
-                {
-                    LogFactory.Warn($"用户登录异常！异常用户：{email},异常信息:{(string)jObject["message"]}", MessageSubjectEnum.ZhaoPinGou);
-
-                    return;
-                }
+                var count = Convert.ToInt32(Regex.Match(html, "class=\"ico-png-money\"></i><span>(\\d+)").Result("$1"));
 
                 using (var db = new ResumeMatchDBEntities())
                 {
                     var user = db.User.FirstOrDefault(f => f.Email == email);
 
                     if (user == null) return;
-
-                    var count = (int)jObject["memberEvents"]?["free_count"];
 
                     user.DownloadNumber = count;
 

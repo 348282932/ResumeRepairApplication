@@ -2,18 +2,17 @@
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Text.RegularExpressions;
 using System.Threading;
 using ResumeMatchApplication.Common;
 using ResumeMatchApplication.EntityFramework.PostgreDB;
 using ResumeMatchApplication.Models;
 
-namespace ResumeMatchApplication.Platform.FenJianLi
+namespace ResumeMatchApplication.Platform.JianLika
 {
     /// <summary>
     /// 注册
     /// </summary>
-    public class RegisterSpider : FenJianLiSpider
+    public class RegisterSpider : JianLikaSpider
     {
         private static readonly object lockObj = new object();
        
@@ -27,6 +26,8 @@ namespace ResumeMatchApplication.Platform.FenJianLi
             var host = string.Empty;
 
             var inviteCode = string.Empty;
+
+            var userId = 0;
 
             var isAddProxy = false;
 
@@ -45,6 +46,8 @@ namespace ResumeMatchApplication.Platform.FenJianLi
                             if (user != null)
                             {
                                 inviteCode = user.InviteCode;
+
+                                userId = user.Id;
                             }
 
                             return result;
@@ -81,6 +84,8 @@ namespace ResumeMatchApplication.Platform.FenJianLi
 
                                 inviteCode = user.InviteCode;
 
+                                userId = user.Id;
+
                                 db.SaveChanges();
 
                                 return result;
@@ -108,11 +113,11 @@ namespace ResumeMatchApplication.Platform.FenJianLi
             {
                 if (string.IsNullOrWhiteSpace(host))
                 {
-                    host = GetProxy("FJL_Register", true);
+                    host = GetProxy("JLK_Register", true);
                 }
                 else
                 {
-                    GetProxy("FJL_Register", host); 
+                    GetProxy("JLK_Register", host); 
                 }
 
                 Thread.Sleep(2000);
@@ -120,7 +125,7 @@ namespace ResumeMatchApplication.Platform.FenJianLi
 
             var dataResult = Register(host, inviteCode);
 
-            ReleaseProxy("FJL_Register",host);
+            ReleaseProxy("JLK_Register", host);
 
             using (var db = new ResumeMatchDBEntities())
             {
@@ -148,14 +153,21 @@ namespace ResumeMatchApplication.Platform.FenJianLi
                         Password = dataResult.Data.Password,
                         CreateTime = DateTime.UtcNow,
                         IsEnable = true,
-                        DownloadNumber = 0,//(255-2) / 3,
+                        DownloadNumber = 0,
                         Host = host,
-                        Platform = 1,
+                        Platform = 3,
                         Status = 0,
                         IsLocked = false,
                         LockedTime = new DateTime(1900, 1, 1),
                         RequestNumber = 0
                     });
+
+                    if (!string.IsNullOrWhiteSpace(inviteCode))
+                    {
+                        var user = db.User.FirstOrDefault(f => f.Id == userId);
+
+                        if (user != null) user.DownloadNumber += 100;
+                    }
 
                     if (proxy != null)
                     {
@@ -178,28 +190,13 @@ namespace ResumeMatchApplication.Platform.FenJianLi
         {
             var cookie = new CookieContainer();
 
-            if (!string.IsNullOrWhiteSpace(inviteCode))
-            {
-                cookie.Add(new Cookie { Name = "vid", Value = inviteCode, Domain = "www.fenjianli.com" });
-            }
-
-            // GET 注册页面
-
-            var dataResult = RequestFactory.QueryRequest("http://www.fenjianli.com/register/toRegisterByEmail.htm", cookieContainer: cookie, host: host);
-
-            if (!dataResult.IsSuccess) return new DataResult<dynamic>(dataResult.ErrorMsg);
-
-            var id = Regex.Match(dataResult.Data, "validate-id.+?\"(\\d+)").Result("$1");
-
-            if (id == null) throw new RequestException("获取注册 ID 失败，失败原因：请求异常，导致解析HTML出错，源码："+ dataResult.Data);
-
             var password = BaseFanctory.GetRandomTel();
 
             var username = password + Global.Email.Substring(Global.Email.IndexOf("@", StringComparison.Ordinal));
 
             #region 获取验证码
-
-            var imgUrl = "http://www.fenjianli.com/register/getCheckCode.htm?" + new Random().NextDouble(); // 随机化图片验证码
+            
+            const string imgUrl = "http://www.jianlika.com/Verify/index.html?788608415904618"; // 随机化图片验证码
 
             var loginRequest = (HttpWebRequest)WebRequest.Create(imgUrl);
 
@@ -251,27 +248,17 @@ namespace ResumeMatchApplication.Platform.FenJianLi
 
             #endregion
 
-            var param = $"id={id}&regType=email&username={username}&password={password}&confirmPassword={password}&checkCode={checkCode}&agree=1&_random={new Random().NextDouble()}";
+            var param = $"email={username}&pwd={password}&repwd={password}&verifycode={checkCode}&invitecode={inviteCode}&agree=on";
 
             // 发送注册请求
             
-            dataResult = RequestFactory.QueryRequest("http://www.fenjianli.com/register/register.htm", param, RequestEnum.POST, cookie, host: host);
+            var dataResult = RequestFactory.QueryRequest("http://www.jianlika.com/Signup/email.html", param, RequestEnum.POST, cookie, host: host);
 
             if (!dataResult.IsSuccess) return new DataResult<dynamic>(dataResult.ErrorMsg);
 
-            if (!dataResult.Data.Contains("成功")) throw new RequestException($"注册请求失败！响应数据：{dataResult.Data}");
+            if (!dataResult.Data.Contains("邮件已发送至")) throw new RequestException($"注册请求失败！响应数据：{dataResult.Data}");
 
-            LogFactory.Info($"注册成功！邮箱：{username}",MessageSubjectEnum.FenJianLi);
-
-            param = $"id={id}&checkSource={username}&_random={new Random().NextDouble()}";
-
-            dataResult = RequestFactory.QueryRequest("http://www.fenjianli.com/register/sendCheckEmail.htm", param, RequestEnum.POST, cookie, host: host);
-
-            // 发送激活邮件请求
-
-            if (!dataResult.IsSuccess) return new DataResult<dynamic>(dataResult.ErrorMsg);
-
-            if (!dataResult.Data.Contains("成功")) throw new RequestException($"发送激活邮件请求失败！响应数据：{dataResult.Data}");
+            LogFactory.Info($"注册成功！邮箱：{username}",MessageSubjectEnum.JianLiKa);
 
             return new DataResult<dynamic>(new {Email = username, Password = password});
         }

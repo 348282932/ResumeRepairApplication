@@ -170,6 +170,10 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
 
             var retryTimes = 2;
 
+            var param = $"userName={userName}&password={password}&code=0000&type=2&invitationNumber=&clientNo=&userToken=&clientType=2";
+
+            RequestFactory.QueryRequest("http://qiye.zhaopingou.com/zhaopingou_interface/register?timestamp=" + BaseFanctory.GetUnixTimestamp(), param, RequestEnum.POST, cookie, "http://qiye.zhaopingou.com/signup", host: host);
+
             Retry:
 
             #region 获取验证码
@@ -212,11 +216,6 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
                 }
             }
 
-            //if (--retryTimes > 0)
-            //{
-            //    goto Retry;
-            //}
-
             //var sr = new StreamReader("D:\\pic.jpg");
 
             //FenJianLiScheduling.cnf.pbx_checkNumber.Image = MediaTypeNames.Image.FromStream(sr.BaseStream);
@@ -233,9 +232,9 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
 
             #endregion
 
-            var param = $"userName={userName}&password={password}&code={checkCode}&type=2&invitationNumber=&clientNo=&userToken=&clientType=2";
-
             // 发送注册请求
+
+            param = $"userName={userName}&password={password}&code={checkCode}&type=2&invitationNumber=&clientNo=&userToken=&clientType=2";
 
             var dataResult = RequestFactory.QueryRequest("http://qiye.zhaopingou.com/zhaopingou_interface/register?timestamp=" + BaseFanctory.GetUnixTimestamp(), param, RequestEnum.POST, cookie, "http://qiye.zhaopingou.com/signup", host: host);
 

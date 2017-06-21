@@ -16,8 +16,6 @@ namespace ResumeMatchApplication.Platform.FenJianLi
     {
         protected static ConcurrentDictionary<User, CookieContainer> userDictionary = new ConcurrentDictionary<User, CookieContainer>();
 
-        private static readonly object lockObj = new object();
-
         /// <summary>
         /// 获取简历ID
         /// </summary>
@@ -29,117 +27,22 @@ namespace ResumeMatchApplication.Platform.FenJianLi
         {
             var dataResult = new DataResult<string>();
 
-            var cookie = new CookieContainer();
+            CookieContainer cookie;
 
-            User user;
+            var result = GetUser(userDictionary, host, true, MatchPlatform.FenJianLi, Login, out cookie);
 
-            lock (lockObj)
+            if (!result.IsSuccess)
             {
-                using (var db = new ResumeMatchDBEntities())
-                {
-                    if (userDictionary.Keys.All(a => a.Host != host))
-                    {
-                        var users = db.User.Where(w => w.IsEnable && w.Platform == 1 && w.Status == 1 && w.Host == host).ToList();
+                dataResult.IsSuccess = false;
 
-                        if (!users.Any())
-                        {
-                            dataResult.IsSuccess = false;
+                dataResult.Code = result.Code;
 
-                            dataResult.Code = ResultCodeEnum.NoUsers;
+                dataResult.ErrorMsg = result.ErrorMsg;
 
-                            return dataResult;
-                        }
-
-                        foreach (var item in users)
-                        {
-                            for (var i = 0; i < 5; i++)
-                            {
-                                if (userDictionary.TryAdd(item, null)) break;
-
-                                if (i == 4) LogFactory.Warn($"向字典中添加用户 {item.Email} 失败！", MessageSubjectEnum.ZhaoPinGou);
-                            }
-                        }
-                    }
-
-                    Next:
-
-                    user = userDictionary.Keys
-                        .Where(f => f.IsEnable && f.Host == host && (f.RequestDate == null || f.RequestDate.Value.Date < DateTime.UtcNow.Date || f.RequestDate.Value.Date == DateTime.UtcNow.Date && f.RequestNumber < Global.TodayMaxRequestNumber))
-                        .OrderBy(o => o.RequestNumber)
-                        .FirstOrDefault();
-
-                    if (user == null)
-                    {
-                        dataResult.IsSuccess = false;
-
-                        dataResult.Code = ResultCodeEnum.RequestUpperLimit;
-
-                        var list = userDictionary.Keys.Where(w => w.Host == host);
-
-                        foreach (var item in list)
-                        {
-                            for (var i = 0; i < 5; i++)
-                            {
-                                if (userDictionary.TryRemove(item, out cookie)) break;
-
-                                if (i == 4)
-                                {
-                                    LogFactory.Warn($"从字典中移除用户 {item.Email} 失败！", MessageSubjectEnum.FenJianLi);
-
-                                    dataResult.ErrorMsg += $"向字典中移除用户 {item.Email} 失败！";
-
-                                    return dataResult;
-                                }
-                            }
-                        }
-
-                        return dataResult;
-                    }
-
-                    if (user.RequestDate == null || user.RequestDate.Value.Date < DateTime.UtcNow.Date)
-                    {
-                        user.RequestDate = DateTime.UtcNow.Date;
-
-                        user.RequestNumber = 0;
-                    }
-
-                    user.RequestNumber++;
-
-                    for (var i = 0; i < 5; i++)
-                    {
-                        if (userDictionary.TryGetValue(user, out cookie)) break;
-                    }
-
-                    if (cookie == null)
-                    {
-                        cookie = Login(user.Email, user.Password);
-
-                        if (cookie != null)
-                        {
-                            for (var i = 0; i < 5; i++)
-                            {
-                                if (userDictionary.TryUpdate(user, cookie, null)) break;
-                            }
-                        }
-                    }
-
-                    if (cookie == null)
-                    {
-                        goto Next;
-                    }
-
-                    var userEntity = db.User.FirstOrDefault(f => f.Id == user.Id);
-
-                    if (userEntity != null)
-                    {
-                        userEntity.RequestDate = user.RequestDate;
-
-                        userEntity.RequestNumber = user.RequestNumber;
-                    }
-
-                    db.TransactionSaveChanges();
-                }
+                return dataResult;
             }
+
+            var user = result.Data;
 
             dataResult = GetResumeId(data, cookie, user);
 
@@ -149,35 +52,22 @@ namespace ResumeMatchApplication.Platform.FenJianLi
 
                 if (resume != null)
                 {
-                    if (dataResult.IsSuccess)
+                    resume.Host = host;
+
+                    resume.MatchPlatform = (short)MatchPlatform.FenJianLi;
+
+                    resume.MatchTime = DateTime.UtcNow;
+
+                    resume.UserId = user.Id;
+
+                    if (!string.IsNullOrWhiteSpace(dataResult.Data))
                     {
-                        if (!string.IsNullOrWhiteSpace(dataResult.Data))
-                        {
-                            resume.Host = host;
+                        resume.Status = 2;
 
-                            resume.Status = 2;
-
-                            resume.MatchPlatform = (short)MatchPlatform.FenJianLi;
-
-                            resume.MatchTime = DateTime.UtcNow;
-
-                            resume.MatchResumeId = dataResult.Data;
-
-                            resume.FenJianLiIsMatch = 1;
-
-                            resume.UserId = user.Id;
-                        }
-                        else
-                        {
-                            resume.Host = host;
-
-                            resume.MatchTime = DateTime.UtcNow;
-
-                            resume.FenJianLiIsMatch = 2;
-                        }
-
-                        db.TransactionSaveChanges();
+                        resume.MatchResumeId = dataResult.Data;
                     }
+
+                    db.TransactionSaveChanges();
                 }
             }
 
@@ -217,24 +107,28 @@ namespace ResumeMatchApplication.Platform.FenJianLi
         /// <returns></returns>
         private static DataResult<string> GetResumeId(string keywords, string companyName, string name, CookieContainer cookie, User user, int pageIndex = 0)
         {
+            var num = 0;
+
             Jumps:
 
             var param = $"keywords={keywords}&companyName={companyName}&rows=60&sortBy=1&sortType=1&offset={pageIndex * 30}&_random={new Random().NextDouble()}&name={name}";
 
             var dataResult = RequestFactory.QueryRequest("http://www.fenjianli.com/search/search.htm", param, RequestEnum.POST, cookie, isNeedSleep: true, host: user.Host);
 
-            if (!dataResult.IsSuccess)
-            {
-                LogFactory.Warn($"搜索简历异常，返回结果为空！账户：{user.Email}",MessageSubjectEnum.FenJianLi);
-
-                return dataResult;
-            }
+            if (!dataResult.IsSuccess)return dataResult;
 
             if (dataResult.Data.Contains("\"error\"") || string.IsNullOrWhiteSpace(dataResult.Data))
             {
-                Thread.Sleep(1500);
+                Thread.Sleep(1000);
 
-                goto Jumps;
+                if (num < 2)
+                {
+                    num++;
+
+                    goto Jumps;
+                }
+
+                return new DataResult<string>();
             }
 
             var jObject = JsonConvert.DeserializeObject(dataResult.Data) as JObject;
@@ -259,8 +153,10 @@ namespace ResumeMatchApplication.Platform.FenJianLi
                     return dataResult;
                 }
 
-                if (pageIndex + 1 < totalSize && pageIndex < 3)
+                if (pageIndex + 1 < totalSize && pageIndex < 0)
                 {
+                    Thread.Sleep(2000);
+
                     return GetResumeId(keywords, companyName, name, cookie, user, ++pageIndex);
                 }
             }

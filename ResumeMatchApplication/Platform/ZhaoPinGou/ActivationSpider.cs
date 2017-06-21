@@ -28,7 +28,7 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
                     {
                         var time = DateTime.UtcNow.AddHours(-1);
 
-                        users = db.User.Where(w => w.Status == 0 && w.Platform == 4 && (!w.IsLocked || w.IsLocked && w.LockedTime < time)).ToList();
+                        users = db.User.Where(w => w.Status == 0 && w.Platform == 4 /*&& (!w.IsLocked || w.IsLocked && w.LockedTime < time)*/).ToList();
 
                         foreach (var user in users)
                         {
@@ -77,18 +77,18 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
 
                     var host = string.Empty;
 
-                    if (Global.IsEnanbleProxy)
-                    {
-                        if (!string.IsNullOrWhiteSpace(user.Host))
-                        {
-                            host = user.Host;
+                    //if (Global.IsEnanbleProxy)
+                    //{
+                    //    if (!string.IsNullOrWhiteSpace(user.Host))
+                    //    {
+                    //        host = user.Host;
 
-                            GetProxy("ZPG_Activation",user.Host);
-                        }
-                    }
+                    //        GetProxy("ZPG_Activation",user.Host);
+                    //    }
+                    //}
                     var dataResult = Activation(url, user.Email, host);
 
-                    ReleaseProxy("ZPG_Activation", host);
+                    //ReleaseProxy("ZPG_Activation", host);
 
                     if (dataResult == null) continue;
 
@@ -122,12 +122,18 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
         /// <param name="email"></param>
         /// <param name="host"></param>
         /// <returns></returns>
-        [Loggable]
         private static DataResult Activation(string url, string email, string host)
         {
             var dataResult = RequestFactory.QueryRequest(url, host: host);
 
-            if(!dataResult.IsSuccess) throw new RequestException($"激活账户失败！邮箱地址：{email}");
+            if (!dataResult.IsSuccess)
+            {
+                dataResult.IsSuccess = false;
+
+                dataResult.ErrorMsg += $"激活失败！,邮箱地址：{email}{Environment.NewLine}";
+            }
+
+            return dataResult;
 
             //if (!dataResult.Data.Contains("成功"))
             //{

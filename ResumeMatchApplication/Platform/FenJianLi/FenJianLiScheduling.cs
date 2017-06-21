@@ -46,27 +46,20 @@ namespace ResumeMatchApplication.Platform.FenJianLi
 
             var workLists = new List<Tuple<Func<DataResult>, int, string, bool>>
             {
-                //new Tuple<Func<DataResult>, int, string, bool>(new RegisterSpider().Init, 5 * 1000, "注册", false),
-                new Tuple<Func<DataResult>, int, string, bool>(new ActivationSpider().Init, 10 * 1000, "激活", false)
+                new Tuple<Func<DataResult>, int, string, bool>(new RegisterSpider().Init, 1 * 1000, "注册", false),
+                new Tuple<Func<DataResult>, int, string, bool>(new ActivationSpider().Init, 1 * 1000, "激活", false)
             };
 
-            var threadCount = 0;
+            Parallel.ForEach(workLists,
+                new ParallelOptions { MaxDegreeOfParallelism = 1 },
+                task =>
+                {
+                    var service = new FenJianLiScheduling { _taskAction = task.Item1, _interval = task.Item2, _taskName = task.Item3, _isInitStart = task.Item4 };
 
-            while (threadCount < Global.ThreadCount)
-            {
-                Parallel.ForEach(workLists,
-                    new ParallelOptions { MaxDegreeOfParallelism = 1 },
-                    task =>
-                    {
-                        var service = new FenJianLiScheduling { _taskAction = task.Item1, _interval = task.Item2, _taskName = task.Item3, _isInitStart = task.Item4 };
+                    service.DoWork();
 
-                        service.DoWork();
-
-                        services.Add(service);
-                    });
-
-                ++threadCount;
-            }
+                    services.Add(service);
+                });
         }
 
         /// <summary>

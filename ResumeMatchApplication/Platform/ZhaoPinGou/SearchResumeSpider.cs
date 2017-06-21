@@ -25,8 +25,6 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
 
         private static readonly Random random = new Random();
 
-        private static readonly object lockObj = new object();
-
         /// <summary>
         /// 获取简历ID
         /// </summary>
@@ -38,130 +36,22 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
         {
             var dataResult = new DataResult<string>();
 
-            var cookie = new CookieContainer();
+            CookieContainer cookie;
 
-            User user;
+            var result = GetUser(userDictionary, host, true, MatchPlatform.ZhaoPinGou, Login, out cookie);
 
-            lock (lockObj)
+            if (!result.IsSuccess)
             {
-                using (var db = new ResumeMatchDBEntities())
-                {
-                    if (userDictionary.Keys.All(a => a.Host != host))
-                    {
-                        var users = db.User.Where(w => w.IsEnable && w.Platform == 4 && w.Status == 1 && w.Host == host).ToList();
+                dataResult.IsSuccess = false;
 
-                        if (!users.Any())
-                        {
-                            dataResult.IsSuccess = false;
+                dataResult.Code = result.Code;
 
-                            dataResult.Code = ResultCodeEnum.NoUsers;
+                dataResult.ErrorMsg = result.ErrorMsg;
 
-                            return dataResult;
-                        }
-
-                        foreach (var item in users)
-                        {
-                            for (var i = 0; i < 5; i++)
-                            {
-                                if (userDictionary.TryAdd(item, null)) break;
-
-                                if (i == 4) LogFactory.Warn($"向字典中添加用户 {item.Email} 失败！", MessageSubjectEnum.ZhaoPinGou);
-                            }
-                        }
-                    }
-
-                    Next:
-
-                    user = userDictionary.Keys
-                        .Where(f => f.IsEnable && f.Host == host && ( f.RequestDate == null || f.RequestDate.Value.Date < DateTime.UtcNow.Date || f.RequestDate.Value.Date == DateTime.UtcNow.Date && f.RequestNumber < Global.TodayMaxRequestNumber))
-                        .OrderBy(o=>o.RequestNumber)
-                        .FirstOrDefault();
-
-                    if (user == null)
-                    {
-                        dataResult.IsSuccess = false;
-
-                        dataResult.Code = ResultCodeEnum.RequestUpperLimit;
-
-                        LogFactory.Warn(JsonConvert.SerializeObject(userDictionary),MessageSubjectEnum.ZhaoPinGou);
-
-                        var list = userDictionary.Keys.Where(w => w.Host == host);
-
-                        foreach (var item in list)
-                        {
-                            for (var i = 0; i < 5; i++)
-                            {
-                                if (userDictionary.TryRemove(item, out cookie)) break;
-
-                                if (i == 4)
-                                {
-                                    LogFactory.Warn($"从字典中移除用户 {item.Email} 失败！", MessageSubjectEnum.ZhaoPinGou);
-
-                                    dataResult.ErrorMsg += $"向字典中移除用户 {item.Email} 失败！";
-
-                                    return dataResult;
-                                }
-                            }
-                        }
-
-                        return dataResult;
-                    }
-
-                    if (user.RequestDate == null || user.RequestDate.Value.Date < DateTime.UtcNow.Date)
-                    {
-                        user.RequestDate = DateTime.UtcNow.Date;
-
-                        user.RequestNumber = 0;
-                    }
-
-                    user.RequestNumber++;
-
-                    for (var i = 0; i < 5; i++)
-                    {
-                        if (userDictionary.TryGetValue(user, out cookie)) break;
-                    }
-
-                    if (cookie == null)
-                    {
-                        var result = Login(user.Email, user.Password, host);
-
-                        if (!result.IsSuccess)
-                        {
-                            LogFactory.Warn(result.ErrorMsg, MessageSubjectEnum.ZhaoPinGou);
-
-                            dataResult.IsSuccess = false;
-
-                            return dataResult;
-                        }
-
-                        cookie = result.Data;
-
-                        if (cookie != null)
-                        {
-                            for (var i = 0; i < 5; i++)
-                            {
-                                if (userDictionary.TryUpdate(user, cookie, null)) break;
-                            }
-                        }
-                    }
-
-                    if (cookie == null)
-                    {
-                        goto Next;
-                    }
-
-                    var userEntity = db.User.FirstOrDefault(f=>f.Id == user.Id);
-
-                    if (userEntity != null)
-                    {
-                        userEntity.RequestDate = user.RequestDate;
-
-                        userEntity.RequestNumber = user.RequestNumber;
-                    }
-
-                    db.TransactionSaveChanges();
-                }
+                return dataResult;
             }
+
+            var user = result.Data;
 
             var count = 0;
 
@@ -196,35 +86,22 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
 
                 if (resume != null)
                 {
-                    if (dataResult.IsSuccess)
+                    resume.Host = host;
+
+                    resume.MatchPlatform = (short)MatchPlatform.ZhaoPinGou;
+
+                    resume.MatchTime = DateTime.UtcNow;
+
+                    resume.UserId = user.Id;
+
+                    if (!string.IsNullOrWhiteSpace(dataResult.Data))
                     {
-                        if (!string.IsNullOrWhiteSpace(dataResult.Data))
-                        {
-                            resume.Host = host;
+                        resume.Status = 2;
 
-                            resume.Status = 2;
-
-                            resume.MatchPlatform = (short)MatchPlatform.ZhaoPinGou;
-
-                            resume.MatchTime = DateTime.UtcNow;
-
-                            resume.MatchResumeId = dataResult.Data;
-
-                            resume.ZhaoPinGouIsMatch = 1;
-
-                            resume.UserId = user.Id;
-                        }
-                        else
-                        {
-                            resume.Host = host;
-
-                            resume.MatchTime = DateTime.UtcNow;
-
-                            resume.ZhaoPinGouIsMatch = 2;
-                        }
-
-                        db.TransactionSaveChanges();
+                        resume.MatchResumeId = dataResult.Data;
                     }
+
+                    db.TransactionSaveChanges();
                 }
             }
 
@@ -256,18 +133,7 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
 
             var dataResult = RequestFactory.QueryRequest("http://qiye.zhaopingou.com/zhaopingou_interface/find_warehouse_by_position_new?timestamp=" + BaseFanctory.GetUnixTimestamp(), param, RequestEnum.POST, cookie, referer, host: user.Host);
 
-            if (!dataResult.IsSuccess)
-            {
-                if (dataResult.Code == ResultCodeEnum.ProxyDisable) return dataResult;
-
-                ++jumpsTimes;
-
-                LogFactory.Warn($"搜索简历异常，返回结果为空！账户：{user.Email}",MessageSubjectEnum.ZhaoPinGou);
-
-                if (jumpsTimes > 3) return new DataResult<string>();
-
-                goto Jumps;
-            }
+            if (!dataResult.IsSuccess) return dataResult;
 
             if (string.IsNullOrWhiteSpace(dataResult.Data)) goto Jumps;
 
@@ -292,7 +158,7 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
 
                 var jArray = jObject["warehouseList"] as JArray;
 
-                var resumeIdArray = jArray?.Where(w=>((string)w["name"]).Substring(0,1) == name.Substring(0,1)).Select(s=>(string)s["resumeHtmlId"]).ToArray();
+                var resumeIdArray = jArray?.Where(w=>!string.IsNullOrEmpty((string)w["name"]) && ((string)w["name"]).Substring(0,1) == name.Substring(0,1)).Select(s=>(string)s["resumeHtmlId"]).ToArray();
 
                 if (string.IsNullOrWhiteSpace(introduction)) return new DataResult<string>();
 

@@ -7,12 +7,12 @@ using ResumeMatchApplication.Common;
 using ResumeMatchApplication.EntityFramework.PostgreDB;
 using ResumeMatchApplication.Models;
 
-namespace ResumeMatchApplication.Platform.FenJianLi
+namespace ResumeMatchApplication.Platform.JianLika
 {
     /// <summary>
     /// 纷简历激活邮箱
     /// </summary>
-    public class ActivationSpider : FenJianLiSpider
+    public class ActivationSpider : JianLikaSpider
     {
         private static readonly object lockObj = new object();
 
@@ -31,7 +31,7 @@ namespace ResumeMatchApplication.Platform.FenJianLi
                     {
                         var time = DateTime.UtcNow.AddHours(-1);
 
-                        users = db.User.Where(w => w.Status == 0 && w.Platform == 1 && (!w.IsLocked || w.IsLocked && w.LockedTime < time)).ToList();
+                        users = db.User.Where(w => w.Status == 0 && w.Platform == 3 && (!w.IsLocked || w.IsLocked && w.LockedTime < time)).ToList();
 
                         foreach (var user in users)
                         {
@@ -69,14 +69,14 @@ namespace ResumeMatchApplication.Platform.FenJianLi
 
                     var content = Encoding.Default.GetString(message.message.RawMessage);
 
-                    if (!Regex.IsMatch(content, "(?s)code=(.+?)</a>"))
+                    if (!Regex.IsMatch(content, "(?s)token=(.+?)</a>"))
                     {
-                        LogFactory.Error($"未匹配到激活码！响应源：{content}", MessageSubjectEnum.FenJianLi);
+                        LogFactory.Error($"未匹配到激活码！响应源：{content}", MessageSubjectEnum.JianLiKa);
 
                         continue;
                     }
                     
-                    var activationCode = Regex.Match(content, "(?s)code=(.+?)</a>").Result("$1").Substring(2);
+                    var activationCode = Regex.Match(content, "(?s)token=(.+?)</a>").Result("$1").Substring(2);
 
                     var host = string.Empty;
 
@@ -86,30 +86,30 @@ namespace ResumeMatchApplication.Platform.FenJianLi
                     //    {
                     //        host = user.Host;
 
-                    //        GetProxy("FJL_Activation",user.Host);
+                    //        GetProxy("JLK_Activation",user.Host);
                     //    }
                     //}
 
                     var dataResult = Activation(activationCode, user.Email, host);
 
-                    //ReleaseProxy("FJL_Activation",host);
+                    //ReleaseProxy("JLK_Activation", host);
 
                     if (dataResult == null) continue;
 
                     if (!dataResult.IsSuccess)
                     {
-                        LogFactory.Error(dataResult.ErrorMsg, MessageSubjectEnum.FenJianLi);
+                        LogFactory.Error(dataResult.ErrorMsg, MessageSubjectEnum.JianLiKa);
 
                         continue;
                     }
 
                     user.Status = 1;
 
-                    LogFactory.Info($"激活成功！邮箱：{user.Email}", MessageSubjectEnum.FenJianLi);
+                    LogFactory.Info($"激活成功！邮箱：{user.Email}", MessageSubjectEnum.JianLiKa);
 
                     if (!EmailFactory.DeleteMessageByMessageId("pop.exmail.qq.com", 995, true, Global.Email, Global.PassWord, message.message.Headers.MessageId))
                     {
-                        LogFactory.Error($"删除激活邮件失败,邮箱地址：{user.Email}", MessageSubjectEnum.FenJianLi);
+                        LogFactory.Error($"删除激活邮件失败,邮箱地址：{user.Email}", MessageSubjectEnum.JianLiKa);
                     }
                 }
 
@@ -129,7 +129,7 @@ namespace ResumeMatchApplication.Platform.FenJianLi
         [Loggable]
         private static DataResult Activation(string activationCode, string email, string host)
         {
-            var url = "http://www.fenjianli.com/register/checkEmailOfCode.htm?code=" + activationCode;
+            var url = "http://www.jianlika.com/activate?token=" + activationCode;
 
             var dataResult = RequestFactory.QueryRequest(url, host: host);
 

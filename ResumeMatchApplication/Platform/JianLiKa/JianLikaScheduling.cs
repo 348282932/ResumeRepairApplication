@@ -6,18 +6,16 @@ using System.Threading.Tasks;
 using ResumeMatchApplication.Common;
 using ResumeMatchApplication.Models;
 
-namespace ResumeMatchApplication.Platform.ZhaoPinGou
+namespace ResumeMatchApplication.Platform.JianLika
 {
     /// <summary>
-    /// 纷简历调度
+    /// 招聘狗调度
     /// </summary>
-    public class ZhaoPinGouScheduling
+    public class JianLikaScheduling
     {
-        public static List<ZhaoPinGouScheduling> services = new List<ZhaoPinGouScheduling>();
+        public static List<JianLikaScheduling> services = new List<JianLikaScheduling>();
 
         private System.Timers.Timer _workTimer;
-
-        private bool isStop { get; set; }
 
         /// <summary>
         /// 定时周期（毫秒）
@@ -48,20 +46,27 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
 
             var workLists = new List<Tuple<Func<DataResult>, int, string, bool>>
             {
-                new Tuple<Func<DataResult>, int, string, bool>(new RegisterSpider().Init, 1 * 1000, "注册", false),
-                new Tuple<Func<DataResult>, int, string, bool>(new ActivationSpider().Init, 1 * 1000, "激活", false)
+                //new Tuple<Func<DataResult>, int, string, bool>(new RegisterSpider().Init, 5 * 1000, "注册", false),
+                //new Tuple<Func<DataResult>, int, string, bool>(new ActivationSpider().Init, 10 * 1000, "激活", false)
             };
 
-            Parallel.ForEach(workLists,
-                new ParallelOptions { MaxDegreeOfParallelism = 1 },
-                task =>
-                {
-                    var service = new ZhaoPinGouScheduling { _taskAction = task.Item1, _interval = task.Item2, _taskName = task.Item3, _isInitStart = task.Item4 };
+            var threadCount = 0;
 
-                    service.DoWork();
+            while (threadCount < Global.ThreadCount)
+            {
+                Parallel.ForEach(workLists,
+                    new ParallelOptions { MaxDegreeOfParallelism = 1 },
+                    task =>
+                    {
+                        var service = new JianLikaScheduling { _taskAction = task.Item1, _interval = task.Item2, _taskName = task.Item3, _isInitStart = task.Item4 };
 
-                    services.Add(service);
-                });
+                        service.DoWork();
+
+                        services.Add(service);
+                    });
+
+                ++threadCount;
+            }
         }
 
         /// <summary>
@@ -75,9 +80,7 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
 
                 foreach (var task in tasks)
                 {
-                    //task._workTimer.Stop();
-
-                    task.isStop = true;
+                    task._workTimer.Stop();
 
                     task._workTimer.Close();
                 }
@@ -86,9 +89,7 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
             {
                 foreach (var item in services)
                 {
-                    //item._workTimer.Stop();
-
-                    item.isStop = true;
+                    item._workTimer.Stop();
 
                     item._workTimer.Close();
                 }
@@ -120,25 +121,20 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
             }
         }
 
-        private readonly object lockobj = new object();
-
         /// <summary>
         /// 通过计时器创建任务
         /// </summary>
         public void DoWork()
         {
-            lock (lockobj)
+            _workTimer = new System.Timers.Timer
             {
-                _workTimer = new System.Timers.Timer
-                {
-                    Interval = 1000,
-                    AutoReset = false
-                };
+                Interval = 1000,
+                AutoReset = false
+            };
 
-                _workTimer.Elapsed += TimerHanlder;
+            _workTimer.Elapsed += TimerHanlder;
 
-                if (_isInitStart) _workTimer.Start(); // 初始化执行
-            }
+            if(_isInitStart) _workTimer.Start(); // 初始化执行
         }
 
         /// <summary>
@@ -150,7 +146,7 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
         {
             lock (_workTimer)
             {
-                _workTimer.Stop();
+                //_workTimer.Stop();
 
                 const int interval = 1000; // 处理失败，1秒后重试
 
@@ -170,7 +166,7 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
                     {
                         dataResult.IsSuccess = false;
 
-                        dataResult.ErrorMsg = string.Format("{5}招聘狗 平台{0}定时任务程序异常！{1}异常消息：{2}{3} 堆栈异常信息：{4}", _taskName, Environment.NewLine, ex.Message, Environment.NewLine, ex.StackTrace, Environment.NewLine);
+                        dataResult.ErrorMsg = string.Format("{5}简历咖 平台{0}定时任务程序异常！{1}异常消息：{2}{3} 堆栈异常信息：{4}", _taskName, Environment.NewLine, ex.Message, Environment.NewLine, ex.StackTrace, Environment.NewLine);
                     }
 
                     if (dataResult.IsSuccess)
@@ -188,12 +184,12 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
 
                 if (!dataResult.IsSuccess)
                 {
-                    LogFactory.Error(dataResult.ErrorMsg, MessageSubjectEnum.ZhaoPinGou); 
+                    LogFactory.Error(dataResult.ErrorMsg, MessageSubjectEnum.FenJianLi);
                 }
 
                 _workTimer.Interval = _interval;
 
-                if(!isStop)_workTimer.Start();
+                //if(!isStop)_workTimer.Start();
             }
         }
     }

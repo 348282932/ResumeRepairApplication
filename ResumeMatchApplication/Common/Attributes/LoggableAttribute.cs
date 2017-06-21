@@ -88,7 +88,9 @@ namespace ResumeMatchApplication.Common
 
             args.FlowBehavior = FlowBehavior.Continue;
 
-            _logger.Error(sb.ToString());
+            LogFactory.Error(sb.ToString());
+
+            //_logger.Error(sb.ToString());
 
             //throw args.Exception;
         }

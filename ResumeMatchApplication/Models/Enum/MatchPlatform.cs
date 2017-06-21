@@ -10,12 +10,12 @@
         ///// <summary>
         ///// 101聘
         ///// </summary>
-        //Pin101 = 2,
+        Pin101 = 2,
 
         ///// <summary>
         ///// 简历咖
         ///// </summary>
-        //JianLiKa = 3,
+        JianLiKa = 3,
 
         /// <summary>
         /// 招聘狗

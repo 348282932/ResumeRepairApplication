@@ -32,9 +32,11 @@ namespace ResumeMatchApplication.Common
         /// <param name="isNeedSleep"></param>
         /// <param name="host"></param>
         /// <returns></returns>
-        public static DataResult<string> QueryRequest(string url, string requestParams = "", RequestEnum requestType = RequestEnum.GET, CookieContainer cookieContainer = null, string referer = "", string contentType = "", string accept = "", bool isNeedSleep = true, string host = "")
+        public static DataResult<string> QueryRequest(string url, string requestParams = "", RequestEnum requestType = RequestEnum.GET, CookieContainer cookieContainer = null, string referer = "", string contentType = "", string accept = "", bool isNeedSleep = false, string host = "")
         {
             var dataResult = new DataResult<string>();
+
+            var retryCount = 2;
 
             if (!string.IsNullOrWhiteSpace(host) && isEnanbleProxy)
             {
@@ -48,11 +50,13 @@ namespace ResumeMatchApplication.Common
 
                     return dataResult;
                 }
-
-                if (isNeedSleep) SpinWait.SpinUntil(() => false, TimeSpan.FromSeconds(new Random().Next(2, 3)));
             }
 
-            if(!url.IsInnerIP()) SpinWait.SpinUntil(() => false, TimeSpan.FromSeconds(new Random().Next(2, 3)));
+            if (isNeedSleep) SpinWait.SpinUntil(() => false, TimeSpan.FromSeconds(new Random().Next(1, 2)));
+
+            //if(!url.IsInnerIP()) SpinWait.SpinUntil(() => false, TimeSpan.FromSeconds(new Random().Next(1, 1)));
+
+            Retry:
 
             try
             {
@@ -76,7 +80,7 @@ namespace ResumeMatchApplication.Common
 
                 httpRequest.Method = requestType.ToString();
 
-                httpRequest.Timeout = 30 * 1000;
+                httpRequest.Timeout = 60 * 1000;
 
                 httpRequest.ContentType = string.IsNullOrWhiteSpace(contentType) ? defaultContentType : contentType;
 
@@ -140,9 +144,18 @@ namespace ResumeMatchApplication.Common
             }
             catch (WebException ex)
             {
-                LogFactory.Warn($"Web响应异常，请求Url:{url},请求参数:{requestParams}代理:{host},异常信息：{ex.Message}");
+                //LogFactory.Warn($"Web响应异常，请求Url:{url},请求参数:{requestParams}代理:{host},异常信息：{ex.Message}");
 
+                if (string.IsNullOrWhiteSpace(host) && --retryCount >= 0)
+                {
+                    if (ex.Status == WebExceptionStatus.ProtocolError) SpinWait.SpinUntil(() => false, TimeSpan.FromSeconds(new Random().Next(1, 2)));
+
+                    goto Retry;
+                }
+                
                 dataResult.IsSuccess = false;
+
+                dataResult.Code = ResultCodeEnum.WebNoConnection;
 
                 dataResult.ErrorMsg = $"Web响应异常，请求Url:{url},Host:{host},异常信息：{ex.Message}";
 

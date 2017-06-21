@@ -60,7 +60,7 @@ namespace ResumeMatchApplication.EntityFramework.PostgreDB
         public short ResumePlatform { get; set; }
 
         /// <summary>
-        /// 匹配平台（1.纷简历 2.101聘 3.简历咖）
+        /// 匹配平台（1.纷简历 2.101聘 3.简历咖 4.招聘狗）
         /// </summary>
         public short MatchPlatform { get; set; }
 
@@ -85,7 +85,7 @@ namespace ResumeMatchApplication.EntityFramework.PostgreDB
         public short LibraryExist { get; set; }
 
         /// <summary>
-        /// 状态（0.待过滤 1.待匹配 2.匹配成功 3.匹配失败 4.下载成功 5.下载失败 6.补全成功, 7.补全失败 8.姓名检验失败）
+        /// 状态（0.待过滤 1.待匹配 2.匹配成功 3.匹配失败 4.下载成功 5.下载失败 6.补全成功, 7.补全失败 8.姓名检验失败, 9,匹配平台链接异常）
         /// </summary>
         public short Status { get; set; }
 
@@ -118,16 +118,6 @@ namespace ResumeMatchApplication.EntityFramework.PostgreDB
         /// 学历
         /// </summary>
         public string Degree { get; set; }
-
-        /// <summary>
-        /// 是否匹配（0.未匹配 1.匹配成功 2.匹配失败）
-        /// </summary>
-        public short ZhaoPinGouIsMatch { get; set; } = 0;
-
-        /// <summary>
-        /// 是否匹配（0.未匹配 1.匹配成功 2.匹配失败）
-        /// </summary>
-        public short FenJianLiIsMatch { get; set; } = 0;
 
         /// <summary>
         /// 是否被锁定

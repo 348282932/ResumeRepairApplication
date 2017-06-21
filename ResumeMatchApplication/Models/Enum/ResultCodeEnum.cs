@@ -20,6 +20,11 @@
         /// <summary>
         /// 没有下载数
         /// </summary>
-        NoDownloadNumber = 4
+        NoDownloadNumber = 4,
+
+        /// <summary>
+        /// Web 链接失效
+        /// </summary>
+        WebNoConnection = 5
     }
 }

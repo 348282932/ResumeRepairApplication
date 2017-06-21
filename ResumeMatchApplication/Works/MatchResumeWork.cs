@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks.Dataflow;
+using Newtonsoft.Json;
 using ResumeMatchApplication.Common;
 using ResumeMatchApplication.EntityFramework.PostgreDB;
 using ResumeMatchApplication.Models;
@@ -19,9 +20,9 @@ namespace ResumeMatchApplication.Works
 
         private static readonly List<string> hostList = new List<string>();
 
-        private static bool isEnd = false;
+        //private static bool isEnd = false;
 
-        private static int processCount;
+        private static bool isFirst = true;
 
         //private static ActionBlock<KeyValuePair<string,List<ResumeSearch>>> actionBlock = new ActionBlock<KeyValuePair<string, List<ResumeSearch>>>(data =>
         //{
@@ -35,214 +36,150 @@ namespace ResumeMatchApplication.Works
         /// <param name="host"></param>
         /// <param name="resumeSearches"></param>
         /// <returns></returns>
-        private static bool Work(string host, List<ResumeSearch> resumeSearches)
+        private static bool Work(string host, IEnumerable<ResumeSearch> resumeSearches)
         {
-
-
             //foreach (var platform in Enum.GetValues(typeof(MatchPlatform)))
-            //{
 
-            //}
-
-            processCount = 0;
-
-            var zhaoPinGou = true;
-
-            var fenJianLi = true;
-
-            var proxyIsEnable = true;
-
-            var queue = new ConcurrentQueue<ResumeSearch>();
-
-            resumeSearches.ForEach(f => { queue.Enqueue(f); });
-
-            // 招聘狗平台匹配块
-
-            var zhaoPinGouActionBlock = new ActionBlock<ResumeSearch>(data =>
-            {
-                var dataResult = new DataResult<string>();
-
-                if (data.FenJianLiIsMatch == 0)
-                {
-                    dataResult = Platform.FenJianLi.SearchResumeSpider.GetResumeId(data, host);
-
-                    data.MatchPlatform = MessageSubjectEnum.FenJianLi;
-                }
-                else
-                {
-                    if (data.ZhaoPinGouIsMatch == 0)
-                    {
-                        dataResult = Platform.ZhaoPinGou.SearchResumeSpider.GetResumeId(data, host);
-
-                        data.MatchPlatform = MessageSubjectEnum.ZhaoPinGou;
-                    }
-                }
-
-                if (dataResult != null && dataResult.IsSuccess)
-                {
-                    if (string.IsNullOrWhiteSpace(dataResult.Data))
-                    {
-                        switch (data.MatchPlatform)
-                        {
-                            case MessageSubjectEnum.ZhaoPinGou:
-                                data.ZhaoPinGouIsMatch = 2;
-                                break;
-                            case MessageSubjectEnum.FenJianLi:
-                                data.FenJianLiIsMatch = 2; ;
-                                break;
-                        }
-
-                        queue.Enqueue(data);
-                    }
-                    else
-                    {
-                        LogFactory.Info($"匹配成功！简历ID：{data.ResumeId}，姓名：{data.Name}",data.MatchPlatform);
-
-                        //data.IsEnd = true;
-
-                        Interlocked.Add(ref processCount, 1);
-                    }
-                }
-                else
-                {
-                    queue.Enqueue(data);
-
-                    if (dataResult == null)
-                    {
-                        switch (data.MatchPlatform)
-                        {
-                            case MessageSubjectEnum.ZhaoPinGou:
-                                zhaoPinGou = false;
-                                break;
-                            case MessageSubjectEnum.FenJianLi:
-                                fenJianLi = false;
-                                break;
-                        }
-
-                        LogFactory.Error($"Host:{host} 程序异常！", data.MatchPlatform);
-                    }
-                    else
-                    {
-                        switch (dataResult.Code)
-                        {
-                            case ResultCodeEnum.ProxyDisable:
-
-                                LogFactory.Info($"Host:{host} 代理失效！", data.MatchPlatform);
-
-                                proxyIsEnable = false;
-
-                                break;
-
-                            case ResultCodeEnum.RequestUpperLimit:
-
-                                switch (data.MatchPlatform)
-                                {
-                                    case MessageSubjectEnum.ZhaoPinGou:
-                                        zhaoPinGou = false;
-                                        break;
-                                    case MessageSubjectEnum.FenJianLi:
-                                        fenJianLi = false;
-                                        break;
-                                }
-
-                                LogFactory.Info($"Host:{host} 请求达到当日上限！", data.MatchPlatform);
-
-                                break;
-
-                            case ResultCodeEnum.NoUsers:
-
-                                switch (data.MatchPlatform)
-                                {
-                                    case MessageSubjectEnum.ZhaoPinGou:
-                                        zhaoPinGou = false;
-                                        break;
-                                    case MessageSubjectEnum.FenJianLi:
-                                        fenJianLi = false;
-                                        break;
-                                }
-
-                                LogFactory.Info($"Host:{host} 对应的Host没有可用用户！", data.MatchPlatform);
-
-                                break;
-
-                            default:
-
-                                LogFactory.Warn($"匹配结果返回异常！异常消息：{dataResult.ErrorMsg} ", data.MatchPlatform);
-
-                                switch (data.MatchPlatform)
-                                {
-                                    case MessageSubjectEnum.ZhaoPinGou:
-                                        data.ZhaoPinGouIsMatch = 2;
-                                        break;
-                                    case MessageSubjectEnum.FenJianLi:
-                                        data.FenJianLiIsMatch = 2;
-                                        break;
-                                }
-
-                                break;
-                        }
-                    }
-                }
-            }, new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = 5 });
+            var isUnBreak = true;
 
             using (var db = new ResumeMatchDBEntities())
             {
-                while (processCount < resumeSearches.Count)
+                if (resumeSearches.Any(resume => !MatchResume(resume, host)))
                 {
-                    if (!proxyIsEnable || !zhaoPinGou && !fenJianLi) // Todo：添加平台需改动
-                    {
-                        var users = db.User.Where(w => w.Host == host).ToList();
+                    isUnBreak = false;
+                }
 
-                        foreach (var user in users)
-                        {
-                            user.IsLocked = false;
-                        }
+                var users = db.User.Where(w => w.Host == host).ToList();
 
-                        db.TransactionSaveChanges();
-
-                        return false;
-                    }
-
-                    ResumeSearch resumeSearch;
-
-                    if (queue.TryDequeue(out resumeSearch))
-                    {
-                        while (true)
-                        {
-                            if (resumeSearch.ZhaoPinGouIsMatch != 0 && resumeSearch.FenJianLiIsMatch != 0) // Todo：添加平台需改动
-                            {
-                                if (resumeSearch.ZhaoPinGouIsMatch == 2 && resumeSearch.ZhaoPinGouIsMatch == 2) // Todo：添加平台需改动
-                                {
-                                    var resume = db.ResumeComplete.FirstOrDefault(f => f.ResumeId == resumeSearch.ResumeId);
-
-                                    if (resume != null)
-                                    {
-                                        resume.Status = 3;
-
-                                        LogFactory.Info($"匹配失败！简历ID：{resume.ResumeId}，姓名：{resume.Name}");
-
-                                        resumeSearch.IsEnd = true;
-
-                                        processCount++;
-                                    }
-
-                                    break;
-                                }
-                            }
-
-                            if (zhaoPinGouActionBlock.InputCount < 3 && zhaoPinGou && fenJianLi)
-                            {
-                                zhaoPinGouActionBlock.Post(resumeSearch);
-
-                                break;
-                            }
-
-                            if (!zhaoPinGou || !fenJianLi) break;
-                        }
-                    }
+                foreach (var user in users)
+                {
+                    user.IsLocked = false;
                 }
 
                 db.TransactionSaveChanges();
+            }
+
+            return isUnBreak;
+        }
+
+
+
+        /// <summary>
+        /// 匹配简历
+        /// </summary>
+        /// <param name="data"></param>
+        /// <param name="host"></param>
+        /// <returns></returns>
+        private static bool MatchResume(ResumeSearch data, string host)
+        {
+            var dataResult = Platform.ZhaoPinGou.SearchResumeSpider.GetResumeId(data, host);
+
+            if (dataResult == null) return false;
+
+            if (!dataResult.IsSuccess)
+            {
+                switch (dataResult.Code)
+                {
+                    case ResultCodeEnum.ProxyDisable:
+
+                        LogFactory.Info($"Host:{host} 代理失效！", MessageSubjectEnum.ZhaoPinGou);
+
+                        return string.IsNullOrWhiteSpace(host) || host == "210.83.225.31:15839";
+
+                    case ResultCodeEnum.RequestUpperLimit:
+
+                        LogFactory.Info($"Host:{host} 请求达到当日上限！", MessageSubjectEnum.ZhaoPinGou);
+
+                        return string.IsNullOrWhiteSpace(host) || host == "210.83.225.31:15839";
+
+                    case ResultCodeEnum.NoUsers:
+
+                        LogFactory.Info($"Host:{host} 对应的Host没有可用用户！", MessageSubjectEnum.ZhaoPinGou);
+
+                        return string.IsNullOrWhiteSpace(host) || host == "210.83.225.31:15839";
+
+                    case ResultCodeEnum.WebNoConnection:
+
+                        LogFactory.Warn("网站无法建立链接！", MessageSubjectEnum.ZhaoPinGou);
+
+                        break;
+
+                    default:
+
+                        LogFactory.Warn($"匹配结果返回异常！异常消息：{dataResult.ErrorMsg} ", MessageSubjectEnum.ZhaoPinGou);
+
+                        return string.IsNullOrWhiteSpace(host) || host == "210.83.225.31:15839";
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(dataResult.Data))
+            {
+                LogFactory.Info($"匹配成功！简历ID：{data.ResumeId}，姓名：{data.Name}", MessageSubjectEnum.ZhaoPinGou);
+
+                return true;
+            }
+
+            dataResult = Platform.FenJianLi.SearchResumeSpider.GetResumeId(data, host);
+
+            if (dataResult == null) return false;
+
+            if (!dataResult.IsSuccess)
+            {
+                switch (dataResult.Code)
+                {
+                    case ResultCodeEnum.ProxyDisable:
+
+                        LogFactory.Info($"Host:{host} 代理失效！", MessageSubjectEnum.FenJianLi);
+
+                        return string.IsNullOrWhiteSpace(host) || host == "210.83.225.31:15839";
+
+                    case ResultCodeEnum.RequestUpperLimit:
+
+                        LogFactory.Info($"Host:{host} 请求达到当日上限！", MessageSubjectEnum.FenJianLi);
+
+                        return string.IsNullOrWhiteSpace(host) || host == "210.83.225.31:15839";
+
+                    case ResultCodeEnum.NoUsers:
+
+                        LogFactory.Info($"Host:{host} 对应的Host没有可用用户！", MessageSubjectEnum.FenJianLi);
+
+                        return string.IsNullOrWhiteSpace(host) || host == "210.83.225.31:15839";
+                    
+                    case ResultCodeEnum.WebNoConnection:
+
+                        LogFactory.Warn("网站无法建立链接！",MessageSubjectEnum.FenJianLi);
+
+                        break;
+
+                    default:
+
+                        LogFactory.Warn($"匹配结果返回异常！异常消息：{dataResult.ErrorMsg} ", MessageSubjectEnum.FenJianLi);
+
+                        return string.IsNullOrWhiteSpace(host) || host == "210.83.225.31:15839";
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(dataResult.Data))
+            {
+                LogFactory.Info($"匹配成功！简历ID：{data.ResumeId}，姓名：{data.Name}", MessageSubjectEnum.FenJianLi);
+
+                return true;
+            }
+
+            using (var db = new ResumeMatchDBEntities())
+            {
+                var resume = db.ResumeComplete.FirstOrDefault(f => f.ResumeId == data.ResumeId);
+
+                if (resume != null)
+                {
+                    resume.Status = 3;
+
+                    if (dataResult.Code == ResultCodeEnum.WebNoConnection) resume.Status = 9;
+
+                    LogFactory.Info($"匹配失败！简历ID：{resume.ResumeId}，姓名：{resume.Name}");
+
+                    db.TransactionSaveChanges();
+                }
             }
 
             return true;
@@ -255,6 +192,13 @@ namespace ResumeMatchApplication.Works
         {
             lock (lockObj)
             {
+                if (!hostQueue.Any() && isFirst)
+                {
+                    hostQueue.Enqueue("210.83.225.31:15839");
+
+                    isFirst = false;
+                }
+
                 var users = new List<User>();
 
                 using (var db = new ResumeMatchDBEntities())
@@ -266,10 +210,10 @@ namespace ResumeMatchApplication.Works
                         var nowDate = DateTime.UtcNow.Date;
 
                         users = db.User
-                                    .Where(w => w.IsEnable && w.Status == 1 && ( w.RequestDate.Value == null || w.RequestDate.Value < nowDate || w.RequestDate.Value == nowDate && w.RequestNumber < Global.TodayMaxRequestNumber) && (!w.IsLocked || w.IsLocked && w.LockedTime < dateTime) && !string.IsNullOrEmpty(w.Host) == Global.IsEnanbleProxy)
+                                    .Where(w => w.IsEnable && w.Status == 1 && ( w.RequestDate.Value == null || w.RequestDate.Value < nowDate || w.RequestDate.Value == nowDate && w.RequestNumber < Global.TodayMaxRequestNumber) && (!w.IsLocked || w.IsLocked && w.LockedTime < dateTime) && (string.IsNullOrEmpty(w.Host) || !string.IsNullOrEmpty(w.Host) == Global.IsEnanbleProxy))
                                     .OrderBy(o=>o.RequestNumber)
                                     .ThenByDescending(o => o.Host)
-                                    .Take(Global.PlatformCount * Global.PlatformHostCount * 2)
+                                    //.Take(Global.PlatformCount * Global.PlatformHostCount * 2)
                                     .ToList();
 
                         foreach (var user in users)
@@ -283,7 +227,9 @@ namespace ResumeMatchApplication.Works
                     }); 
                 }
 
-                var hosts = users.GroupBy(g => g.Host)
+                var hosts = users
+                    .Where(w=>w.IsEnable && w.Host != "210.83.225.31:15839")
+                    .GroupBy(g => g.Host)
                     .Select(s => new { Host = s.Key, Count = s.Count() })
                     .OrderByDescending(o => o.Count)
                     .ToList();
@@ -299,73 +245,52 @@ namespace ResumeMatchApplication.Works
 
                 hostList.Add(hostTemp);
 
-                if (!string.IsNullOrWhiteSpace(host))
+                if (!string.IsNullOrWhiteSpace(hostTemp))
                 {
-                    GetProxy("Match",host);
+                    GetProxy("Match", hostTemp);
                 }
 
                 while (true)
                 {
                     List<ResumeSearch> resumes;
 
-                    using (var db = new ResumeMatchDBEntities())
+                    while (true)
                     {
-                        var list = db.ResumeComplete.Where(w => (w.Host == host || w.Host == null) && w.Status == 1).ToList(); 
-
-                        resumes = list.Select(s => new ResumeSearch
+                        try
                         {
-                            Degree = s.Degree,
-                            Gender = s.Gender,
-                            Introduction = s.Introduction,
-                            LastCompany = s.LastCompany,
-                            Name = s.Name,
-                            ResumeId = s.ResumeId,
-                            ResumeNumber = s.ResumeNumber,
-                            University = s.University,
-                            UserMasterExtId = s.UserMasterExtId,
-                            ZhaoPinGouIsMatch = s.ZhaoPinGouIsMatch
-                        }).ToList();
-                    }
+                            resumes = ResumeProducer.PullResumes();
 
-                    if (!resumes.Any())
-                    {
-                        while (true)
+                            break;
+                        }
+                        catch (Exception ex)
                         {
-                            try
+                            while (true)
                             {
-                                resumes = ResumeProducer.PullResumes();
+                                if (ex.InnerException == null) break;
 
-                                break;
+                                ex = ex.InnerException;
                             }
-                            catch (Exception ex)
-                            {
-                                while (true)
-                                {
-                                    if (ex.InnerException == null) break;
 
-                                    ex = ex.InnerException;
-                                }
-
-                                LogFactory.Error($"拉取联系方式异常！异常信息：{ex.Message},堆栈信息：{ex.StackTrace}");
-                            }
+                            LogFactory.Error($"拉取待匹配的简历异常！异常信息：{ex.Message},堆栈信息：{ex.StackTrace}");
                         }
                     }
 
                     if (resumes != null && resumes.Count > 0)
                     {
-                        if (!Work(host, resumes)) break;
-                    }
+                        Console.WriteLine(string.Join(",", resumes.Select(s => s.Name).ToArray()) );
 
-                    if (isEnd)
-                    {
-                        HostUnLock();
+                        if (!Work(hostTemp, resumes)) break;
                     }
                 }
 
-                ReleaseProxy("Match", host);
+                ReleaseProxy("Match", hostTemp);
 
-                hostList.Remove(hostTemp);
+                //hostList.Remove(hostTemp);
+
+                LogFactory.Info("Host 消费记录：" + JsonConvert.SerializeObject(hostQueue));
             }
+
+            HostUnLock();
         }
 
         /// <summary>
@@ -395,6 +320,8 @@ namespace ResumeMatchApplication.Works
 
                         foreach (var item in hostList)
                         {
+                            if (string.IsNullOrWhiteSpace(item)) continue;
+
                             var users = db.User.Where(w => w.Host == item && w.IsLocked).ToList();
 
                             foreach (var user in users)
@@ -404,6 +331,8 @@ namespace ResumeMatchApplication.Works
                         }
 
                         db.SaveChanges();
+
+                        hostList.Clear();
                     });
                 }
             }
@@ -418,6 +347,13 @@ namespace ResumeMatchApplication.Works
             catch (Exception ex)
             {
                 HostUnLock();
+
+                while (true)
+                {
+                    if (ex.InnerException == null) break;
+
+                    ex = ex.InnerException;
+                }
 
                 return new DataResult($"匹配程序异常！异常信息：{ex.Message},堆栈信息：{ex.StackTrace}");
             }

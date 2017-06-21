@@ -26,120 +26,30 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
         [Loggable]
         public static DataResult DownloadResume(ResumeComplete data, string host)
         {
+            if (Filer(data)) return new DataResult();
+
             var dataResult = new DataResult<string>();
 
             dataResult.IsSuccess = false;
 
-            var isFirst = true;
-
-            var cookie = new CookieContainer();
-
-            User user;
+            CookieContainer cookie;
 
             Next:
 
-            using (var db = new ResumeMatchDBEntities())
+            var result = GetUser(userDictionary, host, false, MatchPlatform.ZhaoPinGou, Login, out cookie);
+
+            if (!result.IsSuccess)
             {
-                if (userDictionary.Keys.All(a => a.Host != host) && isFirst)
-                {
-                    var dateTime = DateTime.UtcNow.Date;
+                dataResult.IsSuccess = false;
 
-                    var users = db.User.Where(w => w.IsEnable && w.Platform == 4 && w.Status == 1 && w.Host == host && (w.DownloadNumber > 0 || w.LastLoginTime < dateTime)).ToList();
+                dataResult.Code = result.Code;
 
-                    if (!users.Any())
-                    {
-                        dataResult.Code = ResultCodeEnum.NoUsers;
+                dataResult.ErrorMsg = result.ErrorMsg;
 
-                        return dataResult;
-                    }
-
-                    foreach (var item in users)
-                    {
-                        for (var i = 0; i < 5; i++)
-                        {
-                            if (userDictionary.TryAdd(item, null)) break;
-
-                            if (i == 4)
-                            {
-                                LogFactory.Warn($"向字典中添加用户 {item.Email} 失败！", MessageSubjectEnum.ZhaoPinGou);
-
-                                dataResult.ErrorMsg = $"向字典中添加用户 {item.Email} 失败！";
-
-                                return dataResult;
-                            }
-                        }
-                    }
-
-                    isFirst = false;
-                }
-
-                user = userDictionary.Keys
-                    .Where(f => f.IsEnable && f.Host == host && f.DownloadNumber > 0)
-                    .OrderBy(o=>o.Email)
-                    .FirstOrDefault();
-
-                if (user == null)
-                {
-                    dataResult.Code = ResultCodeEnum.NoUsers;
-
-                    var list = userDictionary.Keys.Where(w => w.Host == host);
-
-                    foreach (var item in list)
-                    {
-                        for (var i = 0; i < 5; i++)
-                        {
-                            if (userDictionary.TryRemove(item, out cookie)) break;
-
-                            if (i == 4)
-                            {
-                                LogFactory.Warn($"从字典中移除用户 {item.Email} 失败！", MessageSubjectEnum.ZhaoPinGou);
-
-                                dataResult.ErrorMsg += $"向字典中移除用户 {item.Email} 失败！";
-
-                                return dataResult;
-                            }
-                        }
-                    }
-
-                    return dataResult;
-                }
-
-                for (var i = 0; i < 5; i++)
-                {
-                    if (userDictionary.TryGetValue(user, out cookie)) break;
-                }
-
-                if (cookie == null)
-                {
-                    var result = Login(user.Email, user.Password, host);
-
-                    if (!result.IsSuccess)
-                    {
-                        LogFactory.Warn(result.ErrorMsg, MessageSubjectEnum.ZhaoPinGou);
-
-                        return dataResult;
-                    }
-
-                    cookie = result.Data;
-
-                    if (cookie != null)
-                    {
-                        for (var i = 0; i < 5; i++)
-                        {
-                            if (userDictionary.TryUpdate(user, cookie, null)) break;
-                        }
-                    }
-                }
-
-                if (cookie == null)
-                {
-                    user.IsEnable = false;
-
-                    goto Next;
-                }
-
-                db.TransactionSaveChanges();
+                return dataResult;
             }
+
+            var user = result.Data;
 
             var userToken = cookie.GetCookies(new Uri("http://qiye.zhaopingou.com/"))["hrkeepToken"];
 
@@ -184,9 +94,22 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
 
                     if (unLockResult.Code == ResultCodeEnum.NoDownloadNumber)
                     {
+                        var userTemp = user;
+
+                        var users = userDictionary.Keys.Where(f => f.Email == userTemp.Email);
+
+                        foreach (var item in users)
+                        {
+                            userDictionary.TryRemove(item, out cookie);
+                        }
+
                         user.DownloadNumber = 0;
 
                         userEntity.DownloadNumber = 0;
+
+                        resumeEntity.Status = 2;
+
+                        user.LastLoginTime = DateTime.UtcNow;
 
                         userEntity.LastLoginTime = DateTime.UtcNow;
 
@@ -246,7 +169,7 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
 
                 resumeEntity.Status = 6;
 
-                if (resumeEntity.Name == name)
+                if (resumeEntity.Name.Trim() == name?.Trim())
                 {
                     var matchedResult = new List<ResumeMatchResult>();
 
@@ -266,6 +189,8 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
                 else
                 {
                     LogFactory.Warn($"姓名校验异常！库中简历姓名：{resumeEntity.Name}，下载简历姓名：{name}");
+
+                    resumeEntity.Name += $"_{name}";
 
                     resumeEntity.PostBackStatus = 0;
 
@@ -443,6 +368,24 @@ namespace ResumeMatchApplication.Platform.ZhaoPinGou
             }
 
             return new DataResult<string>();
+        }
+        
+        /// <summary>
+        /// 招聘狗旧库过滤
+        /// </summary>
+        /// <param name="resume"></param>
+        /// <returns></returns>
+        private static bool Filer(ResumeComplete resume)
+        {
+            var resumes = new List<ResumeComplete>();
+
+            resumes.Add(resume);
+
+            resumes = ResumeFiler.ZhaoPinGou(resumes); // 过滤已有的招聘狗简历
+
+            if (!resumes.Any()) return true;
+
+            return false;
         }
     }
 }

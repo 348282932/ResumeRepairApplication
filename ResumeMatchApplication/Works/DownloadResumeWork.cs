@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,90 +20,96 @@ namespace ResumeMatchApplication.Works
 
         private static bool isEnd = false;
 
+        /// <summary>
+        /// 工作流
+        /// </summary>
+        /// <param name="host"></param>
+        /// <param name="resumes"></param>
+        /// <returns></returns>
         private static void Work(string host, IReadOnlyCollection<ResumeComplete> resumes)
         {
-            var zhaoPinGou = true;
-
-            var proxyIsEnable = true;
-
-            // 招聘狗平台下载块
-
-            var zhaoPinGouActionBlock = new ActionBlock<ResumeComplete>(data =>
+            using (var db = new ResumeMatchDBEntities())
             {
-                if (!zhaoPinGou) return;
-
-                var dataResult = Platform.ZhaoPinGou.DownloadResumeSpider.DownloadResume(data, host);
-
-                if(dataResult == null) return;
-
-                if (!dataResult.IsSuccess)
+                if (resumes.Any(resume => !DownloadResume(host, resume)))
                 {
-                    switch (dataResult.Code)
-                    {
-                        case ResultCodeEnum.ProxyDisable:
-
-                            LogFactory.Info($"Host:{host} 代理失效！", MessageSubjectEnum.ZhaoPinGou);
-
-                            proxyIsEnable = false;
-
-                            break;
-
-                        case ResultCodeEnum.NoUsers:
-
-                            zhaoPinGou = false;
-
-                            LogFactory.Info($"Host:{host} 对应的Host没有可用用户用于下载简历！{dataResult.ErrorMsg}", MessageSubjectEnum.ZhaoPinGou);
-
-                            break;
-
-                        default:
-
-                            LogFactory.Warn($"下载简历异常！异常消息：{dataResult.ErrorMsg} ", MessageSubjectEnum.ZhaoPinGou);
-
-                            zhaoPinGou = false;
-
-                            break;
-                    }
+                    return;
                 }
-                else
+
+                var resumeIdArr = resumes.Select(s => s.Id).ToArray();
+
+                var resumeList = db.ResumeComplete.Where(w => resumeIdArr.Any(a => a == w.Id) && w.IsLocked).ToList();
+
+                foreach (var item in resumeList)
                 {
-                    LogFactory.Info($"简历补全成功！ResumeId：{data.ResumeId}",MessageSubjectEnum.ZhaoPinGou);
+                    item.IsLocked = false;
                 }
-            });
 
-            var zhaoPinGouResumes = resumes.Where(w => w.MatchPlatform == (short)MatchPlatform.ZhaoPinGou).ToList();
+                db.TransactionSaveChanges();
+                
+            }
+        }
 
-            if (zhaoPinGouResumes.Count == 0) zhaoPinGou = false;
+        /// <summary>
+        /// 下载简历
+        /// </summary>
+        /// <param name="host"></param>
+        /// <param name="data"></param>
+        /// <returns></returns>
+        private static bool DownloadResume(string host, ResumeComplete data)
+        {
+            var dataResult = new DataResult();
 
-            zhaoPinGouResumes = Api.ResumeFiler.ZhaoPinGou(zhaoPinGouResumes); // 过滤已有的招聘狗简历
+            MessageSubjectEnum messageSubjectEnum = 0;
 
-            zhaoPinGouResumes.ForEach(f => { zhaoPinGouActionBlock.Post(f); });
-
-            while (true)
+            if (data.MatchPlatform == (short)MatchPlatform.FenJianLi)
             {
-                if (!proxyIsEnable || !zhaoPinGou || zhaoPinGouActionBlock.InputCount == 0) // Todo：添加平台需改动
+                messageSubjectEnum = MessageSubjectEnum.FenJianLi;
+
+                dataResult = Platform.FenJianLi.DownloadResumeSpider.DownloadResume(data, host);
+            }
+
+            if (data.MatchPlatform == (short)MatchPlatform.ZhaoPinGou)
+            {
+                messageSubjectEnum = MessageSubjectEnum.ZhaoPinGou;
+
+                dataResult = Platform.ZhaoPinGou.DownloadResumeSpider.DownloadResume(data, host);
+            }
+
+            if (dataResult == null) return false;
+
+            if (!dataResult.IsSuccess)
+            {
+                switch (dataResult.Code)
                 {
-                    zhaoPinGouActionBlock.Complete();
+                    case ResultCodeEnum.ProxyDisable:
 
-                    zhaoPinGouActionBlock.Completion.Wait();
+                        LogFactory.Info($"Host:{host} 代理失效！", messageSubjectEnum);
 
-                    using (var db = new ResumeMatchDBEntities())
-                    {
-                        var resumeIdArr = resumes.Select(s => s.Id).ToArray();
+                        return false; 
 
-                        var resumeList = db.ResumeComplete.Where(w => resumeIdArr.Any(a => a == w.Id) && w.IsLocked).ToList();
+                    case ResultCodeEnum.NoUsers:
 
-                        foreach (var item in resumeList)
-                        {
-                            item.IsLocked = false;
-                        }
+                        LogFactory.Info($"Host:{host} 对应的Host没有可用用户用于下载简历！{dataResult.ErrorMsg}", messageSubjectEnum);
 
-                        db.TransactionSaveChanges();
+                        return false;
 
-                        return;
-                    }
+                    case ResultCodeEnum.WebNoConnection:
+
+                        LogFactory.Warn("网站无法建立链接！", MessageSubjectEnum.FenJianLi);
+
+                        return true;
+
+                    default:
+
+                        LogFactory.Warn($"下载简历异常！异常消息：{dataResult.ErrorMsg} ", messageSubjectEnum);
+
+                        return false;
                 }
             }
+
+            LogFactory.Info($"简历补全成功！ResumeId：{data.ResumeId}", messageSubjectEnum);
+
+            return true;
         }
 
         /// <summary>
@@ -160,27 +167,32 @@ namespace ResumeMatchApplication.Works
                     {
                         var dateTime = DateTime.UtcNow.AddHours(-1);
 
-                        var today = DateTime.UtcNow.Date;
+                        var today = DateTime.UtcNow.Date.AddHours(-8);
 
                         var downloadUserArr = db.User
-                                            .Where(w => !string.IsNullOrEmpty(w.Host) == Global.IsEnanbleProxy && (w.DownloadNumber > 0 || w.LastLoginTime < today || w.LastLoginTime == null))
+                                            .Where(w => w.IsEnable && (string.IsNullOrEmpty(w.Host) || !string.IsNullOrEmpty(w.Host) == Global.IsEnanbleProxy) && (w.DownloadNumber > 0 || w.LastLoginTime < today || w.LastLoginTime == null))
                                             .GroupBy(g => new { g.Host, g.Platform })
                                             .Select(s=> s.Key)
-                                            .ToArray();
+                                            .Distinct()
+                                            .ToList();
 
                         var query = db.ResumeComplete
-                            .Where(w => w.Status == 2 && (!w.IsLocked || w.IsLocked && w.LockedTime < dateTime) && !string.IsNullOrEmpty(w.Host) == Global.IsEnanbleProxy);
+                            .Where(w => w.Status == 2 && (!w.IsLocked || w.IsLocked && w.LockedTime < dateTime));
 
-                        foreach (var item in downloadUserArr)
+                        var platformList = downloadUserArr.GroupBy(g => g.Platform).Select(s => s.Key).ToList();
+
+                        var hostList = downloadUserArr.GroupBy(g => g.Host)/*.Where(w=>!string.IsNullOrEmpty(w.Key))*/.Select(s => s.Key).ToList(); // 排除本地HOST
+
+                        foreach (var item in platformList)
                         {
                             resumes.AddRange(query
-                                .Where(w => w.Host == item.Host && w.MatchPlatform == item.Platform)
+                                .Where(w => w.MatchPlatform == item)
                                 .OrderByDescending(o => o.Weights)
                                 .ThenByDescending(o => o.MatchTime)
                                 .Take(20));
                         }
 
-                        resumes = resumes
+                        resumes = resumes.Where(w=> w.Weights == 1 && w.MatchPlatform == 4) // Todo：当前只优先下载泽林的简历
                             .OrderByDescending(o => o.Weights)
                             .ThenByDescending(o => o.MatchTime)
                             .Take(20).ToList();
@@ -193,15 +205,20 @@ namespace ResumeMatchApplication.Works
                         }
 
                         db.SaveChanges();
+
+                        var count = resumes.Count / hostList.Count + 1;
+
+                        for (var i = 0; i < hostList.Count; i++)
+                        {
+                            var temp = resumes.Skip(i*count).Take(count).ToList();
+
+                            if (temp.Any()) resumeQueue.Enqueue(new KeyValuePair<string, List<ResumeComplete>>(hostList[i], temp));
+                        }
+
                     });
                 }
 
-                var hostResumes = resumes.GroupBy(g => g.Host).Select(s => new { Host = s.Key, ResumeIdList = s }).ToList();
-
-                hostResumes.ForEach(f =>
-                {
-                    resumeQueue.Enqueue(new KeyValuePair<string, List<ResumeComplete>>(f.Host, f.ResumeIdList.ToList()));
-                });
+                
             }
 
             KeyValuePair<string, List<ResumeComplete>> hostResume;

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json;
@@ -13,11 +14,70 @@ namespace ResumeMatchApplication.Api
     {
         private static readonly object lockObj = new object();
 
+        private static readonly ConcurrentQueue<List<ResumeSearch>> resumeQueue = new ConcurrentQueue<List<ResumeSearch>>();
+
+        private static bool isFirst = true;
+        
+        public static List<ResumeSearch> PullResumes()
+        {
+            List<ResumeSearch> list;
+
+            lock (lockObj)
+            {
+                while (resumeQueue.IsEmpty || !resumeQueue.TryDequeue(out list))
+                {
+                    if (resumeQueue.IsEmpty)
+                    {
+                        List<ResumeSearch> resumeList;
+
+                        if (isFirst)
+                        {
+                            var time = DateTime.UtcNow.AddHours(-1);
+
+                            using (var db = new ResumeMatchDBEntities())
+                            {
+                                resumeList = db.ResumeComplete.Where(w => w.Status == 1 && (!w.IsLocked || w.IsLocked && w.LockedTime < time)).Select(s => new ResumeSearch
+                                {
+                                    Degree = s.Degree,
+                                    Gender = s.Gender,
+                                    Introduction = s.Introduction,
+                                    LastCompany = s.LastCompany,
+                                    Name = s.Name,
+                                    ResumeId = s.ResumeId,
+                                    ResumeNumber = s.ResumeNumber,
+                                    University = s.University,
+                                    UserMasterExtId = s.UserMasterExtId
+                                }).ToList();
+                            }
+
+                            isFirst = false;
+                        }
+                        else
+                        {
+                            resumeList = PullAllResumes();
+                        }
+
+                        const int taskCount = 10;
+
+                        for (var i = 0; i < resumeList.Count + taskCount; i += taskCount)
+                        {
+                            var temp = resumeList.Skip(i).Take(taskCount).ToList();
+
+                            if(temp.Any()) resumeQueue.Enqueue(temp);
+                        }
+                    }
+                }
+            }
+
+            return list;
+        }
+
         /// <summary>
         /// 拉取没有联系方式的简历
         /// </summary>
         /// <returns></returns>
-        public static List<ResumeSearch> PullResumes()
+        [Loggable]
+        private static List<ResumeSearch> PullAllResumes()
         {
             var list = PullResumesByZeLin();
 
@@ -27,7 +87,7 @@ namespace ResumeMatchApplication.Api
 
             Retry:
 
-            var dataResult = RequestFactory.QueryRequest(Global.HostZhao + "/splider/Resume/GetResumeWithNoDeal?rowcount=10");
+            var dataResult = RequestFactory.QueryRequest(Global.HostZhao + "/splider/Resume/GetResumeWithNoDeal?rowcount=100");
 
             if (!dataResult.IsSuccess || string.IsNullOrWhiteSpace(dataResult.Data)) goto Retry;
 
@@ -82,7 +142,22 @@ namespace ResumeMatchApplication.Api
             {
                 var resumeIdArr = resumesList.Select(s => s.ResumeId).ToArray();
 
-                var resumes = db.ResumeComplete.Where(w => resumeIdArr.Any(a => a == w.ResumeId));
+                var resumes = db.ResumeComplete.Where(w => resumeIdArr.Any(a => a == w.ResumeId)).ToList();
+
+                var removeArr = resumes.Select(s => s.ResumeId).ToArray();
+
+                if (removeArr.Any()) LogFactory.Warn("获取到重复简历！ResumeID：" + string.Join("，", removeArr));
+
+                var idArr = resumes.Where(a => a.Status == 6 || a.Status == 2).Select(s => s.ResumeId).ToArray();
+
+                if (idArr.Length > 0)
+                {
+                    LogFactory.Warn("过滤掉已有联系方式的重复简历！" + string.Join("，", idArr));
+
+                    resumes.RemoveAll(r => idArr.Any(a => a == r.ResumeId));
+
+                    resumesList.RemoveAll(r => idArr.Any(a => a == r.ResumeId));
+                }
 
                 db.ResumeComplete.RemoveRange(resumes);
 
@@ -119,7 +194,7 @@ namespace ResumeMatchApplication.Api
 
             Retry:
 
-            var dataResult = RequestFactory.QueryRequest(Global.HostZhao + "/splider/Resume/GetResumeWithNoDeal_ZL?rowcount=10");
+            var dataResult = RequestFactory.QueryRequest(Global.HostZhao + "/splider/Resume/GetResumeWithNoDeal_ZL?rowcount=100");
 
             if (!dataResult.IsSuccess || string.IsNullOrWhiteSpace(dataResult.Data)) goto Retry;
 
@@ -174,7 +249,22 @@ namespace ResumeMatchApplication.Api
             {
                 var resumeIdArr = resumesList.Select(s => s.ResumeId).ToArray();
 
-                var resumes = db.ResumeComplete.Where(w => resumeIdArr.Any(a => a == w.ResumeId));
+                var resumes = db.ResumeComplete.Where(w => resumeIdArr.Any(a => a == w.ResumeId)).ToList();
+
+                var removeArr = resumes.Select(s => s.ResumeId).ToArray();
+
+                if(removeArr.Any()) LogFactory.Warn("获取到重复简历！ResumeID：" + string.Join("，", removeArr));
+
+                var idArr = resumes.Where(a => a.Status == 6 || a.Status == 2).Select(s => s.ResumeId).ToArray();
+
+                if (idArr.Length > 0)
+                {
+                    LogFactory.Warn("过滤掉已匹配到的重复简历！ResumeID：" + string.Join("，", idArr));
+
+                    resumes.RemoveAll(r => idArr.Any(a => a == r.ResumeId));
+
+                    resumesList.RemoveAll(r => idArr.Any(a => a == r.ResumeId));
+                }
 
                 db.ResumeComplete.RemoveRange(resumes);
 
@@ -228,15 +318,15 @@ namespace ResumeMatchApplication.Api
 
                 var resumeList = db.ResumeComplete.Where(w => resumeIdArr.Any(a => a == w.ResumeId)).ToList();
 
+                foreach (var resume in resumeList)
+                {
+                    resume.Status = 1;
+
+                    resume.LibraryExist = 3;
+                }
+
                 if (string.IsNullOrWhiteSpace(signature))
                 {
-                    foreach (var resume in resumeList)
-                    {
-                        resume.Status = 1;
-
-                        resume.LibraryExist = 3;
-                    }
-
                     db.TransactionSaveChanges();
 
                     LogFactory.Warn("简历过滤 API 登录异常！跳过过滤！",MessageSubjectEnum.API);

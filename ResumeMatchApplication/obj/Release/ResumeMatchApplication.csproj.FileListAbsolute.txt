@@ -44,3 +44,4 @@ C:\Source Code\Git\ResumeRepairApplication\ResumeMatchApplication\obj\Release\Re
 C:\Source Code\Git\ResumeRepairApplication\ResumeMatchApplication\obj\Release\ResumeMatchApplication.exe
 C:\Source Code\Git\ResumeRepairApplication\ResumeMatchApplication\obj\Release\ResumeMatchApplication.pdb
 C:\Source Code\Git\ResumeRepairApplication\ResumeMatchApplication\obj\Release\PostSharpHost.config
+C:\Source Code\Git\ResumeRepairApplication\ResumeMatchApplication\obj\Release\ResumeMatchApplication.csprojResolveAssemblyReference.cache

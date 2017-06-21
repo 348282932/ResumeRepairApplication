@@ -143,10 +143,16 @@
     <Compile Include="Models\ResumeSearch.cs" />
     <Compile Include="Models\Schedule.cs" />
     <Compile Include="Platform\FenJianLi\ActivationSpider.cs" />
+    <Compile Include="Platform\FenJianLi\DownloadResumeSpider.cs" />
     <Compile Include="Platform\FenJianLi\FenJianLiScheduling.cs" />
     <Compile Include="Platform\FenJianLi\FenJianLiSpider.cs" />
     <Compile Include="Platform\FenJianLi\RegisterSpider.cs" />
     <Compile Include="Platform\FenJianLi\SearchResumeSpider.cs" />
+    <Compile Include="Platform\JianLiKa\ActivationSpider.cs" />
+    <Compile Include="Platform\JianLiKa\JianLikaScheduling.cs" />
+    <Compile Include="Platform\JianLiKa\JianLiKaSpider.cs" />
+    <Compile Include="Platform\JianLiKa\RegisterSpider.cs" />
+    <Compile Include="Platform\JianLiKa\SearchResumeSpider.cs" />
     <Compile Include="Platform\ZhaoPinGou\ActivationSpider.cs" />
     <Compile Include="Platform\ZhaoPinGou\DownloadResumeSpider.cs" />
     <Compile Include="Platform\ZhaoPinGou\SearchResumeSpider.cs" />
@@ -161,7 +167,9 @@
     <Compile Include="Works\WorksScheduling.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="App.config" />
+    <None Include="App.config">
+      <SubType>Designer</SubType>
+    </None>
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup />

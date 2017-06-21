@@ -16,30 +16,32 @@ namespace ResumeMatchApplication.Api
         /// <returns></returns>
         protected static string Login()
         {
-            dynamic param = new { Username = Global.UserName, Password = Global.UserPassword };
+            return "c7342db1332449ffa93d2e7a34a1ee79";
 
-            for (var i = 0; i < 3; i++)
-            {
-                var dataResult = RequestFactory.QueryRequest(Global.HostChen + "/api/queryresume/login", JsonConvert.SerializeObject(param), RequestEnum.POST, contentType: ContentTypeEnum.Json.Description());
+            //dynamic param = new { Username = Global.UserName, Password = Global.UserPassword };
 
-                if (dataResult.IsSuccess)
-                {
-                    var jObject = JsonConvert.DeserializeObject(dataResult.Data) as JObject;
+            //for (var i = 0; i < 3; i++)
+            //{
+            //    var dataResult = RequestFactory.QueryRequest(Global.HostChen + "/api/queryresume/login", JsonConvert.SerializeObject(param), RequestEnum.POST, contentType: ContentTypeEnum.Json.Description());
 
-                    if (jObject == null) continue;
+            //    if (dataResult.IsSuccess)
+            //    {
+            //        var jObject = JsonConvert.DeserializeObject(dataResult.Data) as JObject;
 
-                    if ((int)jObject["Code"] == 0)
-                    {
-                        signature = jObject["Signature"].ToString();
+            //        if (jObject == null) continue;
 
-                        break;
-                    }
+            //        if ((int)jObject["Code"] == 0)
+            //        {
+            //            signature = jObject["Signature"].ToString();
 
-                    LogFactory.Warn("简历过滤 API 登录异常！异常信息：" + jObject["Message"], MessageSubjectEnum.API);
-                }
-            }
+            //            break;
+            //        }
 
-            return signature;
+            //        LogFactory.Warn("简历过滤 API 登录异常！异常信息：" + jObject["Message"], MessageSubjectEnum.API);
+            //    }
+            //}
+
+            //return signature;
         }
 
         /// <summary>
